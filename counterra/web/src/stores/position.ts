@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import type { Position, ApiResponse } from '../types'
+import type { Position } from '../types'
+import { useToastStore } from './toast'
 
 export const usePositionStore = defineStore('position', {
   state: () => ({
@@ -12,10 +13,8 @@ export const usePositionStore = defineStore('position', {
     async fetchPositions() {
       this.loading = true
       try {
-        const response = await axios.get<ApiResponse<Position[]>>('http://localhost/acm/counterra/api/positions')
-        if (response.data.status === 'success') {
-          this.positions = response.data.data
-        }
+        const response = await axios.get<Position[]>('/positions')
+        this.positions = response.data
       } catch (error) {
         console.error('Error fetching positions:', error)
       } finally {
@@ -25,12 +24,11 @@ export const usePositionStore = defineStore('position', {
 
     async addPosition(payload: Position): Promise<boolean> {
       try {
-        const response = await axios.post<ApiResponse<Position>>('http://localhost/acm/counterra/api/positions', payload)
-        if (response.data.status === 'success') {
-          await this.fetchPositions()
-          return true
-        }
-        return false
+        const toast = useToastStore()
+        await axios.post<Position>('/positions', payload)
+        await this.fetchPositions()
+        toast.success('Position created')
+        return true
       } catch (error) {
         console.error('Error adding position:', error)
         return false
@@ -39,12 +37,11 @@ export const usePositionStore = defineStore('position', {
 
     async updatePosition(id: number, payload: Position): Promise<boolean> {
       try {
-        const response = await axios.put<ApiResponse<Position>>(`http://localhost/acm/counterra/api/positions/${id}`, payload)
-        if (response.data.status === 'success') {
-          await this.fetchPositions()
-          return true
-        }
-        return false
+        const toast = useToastStore()
+        await axios.put<Position>(`/positions/${id}`, payload)
+        await this.fetchPositions()
+        toast.success('Position updated')
+        return true
       } catch (error) {
         console.error('Error updating position:', error)
         return false
@@ -53,12 +50,11 @@ export const usePositionStore = defineStore('position', {
 
     async deletePosition(id: number): Promise<boolean> {
       try {
-        const response = await axios.delete<ApiResponse<void>>(`http://localhost/acm/counterra/api/positions/${id}`)
-        if (response.data.status === 'success') {
-          await this.fetchPositions()
-          return true
-        }
-        return false
+        const toast = useToastStore()
+        await axios.delete(`/positions/${id}`)
+        await this.fetchPositions()
+        toast.success('Position deleted')
+        return true
       } catch (error) {
         console.error('Error deleting position:', error)
         return false

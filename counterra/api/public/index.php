@@ -33,13 +33,14 @@ $app->get('/cities', [\App\Controllers\CityController::class, 'getAll']);
 $app->post('/cities', [\App\Controllers\CityController::class, 'create']);
 $app->put('/cities/{id}', [\App\Controllers\CityController::class, 'update']);
 $app->delete('/cities/{id}', [\App\Controllers\CityController::class, 'delete']);
-$app->get('/cities/{id}/setup', [\App\Controllers\CityController::class, 'getFullSetup']);
+$app->get('/cities/{id}', [\App\Controllers\CityController::class, 'getOne']);
 
 // Positions
 $app->get('/positions', [\App\Controllers\PositionController::class, 'getAll']);
 $app->post('/positions', [\App\Controllers\PositionController::class, 'create']);
 $app->put('/positions/{id}', [\App\Controllers\PositionController::class, 'update']);
 $app->delete('/positions/{id}', [\App\Controllers\PositionController::class, 'delete']);
+$app->get('/positions/{id}', [\App\Controllers\PositionController::class, 'getOne']);
 
 $app->get('/test', function (Request $request, Response $response) {
     $response->getBody()->write(json_encode(['message' => 'API is alive!']));

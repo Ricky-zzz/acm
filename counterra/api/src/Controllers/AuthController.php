@@ -10,7 +10,7 @@ class AuthController {
         $data = $request->getParsedBody();
         if (!is_array($data)) {
             error_log("Auth login: parsed body missing or invalid");
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Invalid request body']));
+            $response->getBody()->write(json_encode(['message' => 'Invalid request body']));
             return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
         }
 
@@ -22,7 +22,7 @@ class AuthController {
         $db = (new Database())->getConnection();
         if (!$db) {
             error_log("Auth login: database connection failed");
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Database connection failed']));
+            $response->getBody()->write(json_encode(['message' => 'Database connection failed']));
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
 
@@ -36,9 +36,11 @@ class AuthController {
 
         if ($user && password_verify($password, $user['password'])) {
             $result = [
-                'status' => 'success',
                 'token' => 'acm_secure_session_' . bin2hex(random_bytes(16)),
-                'user' => ['username' => $user['username']]
+                'user' => [
+                    'id' => intval($user['id'] ?? 0),
+                    'username' => $user['username']
+                ]
             ];
             $response->getBody()->write(json_encode($result));
             return $response->withHeader('Content-Type', 'application/json');
@@ -48,7 +50,7 @@ class AuthController {
             error_log("Auth login: password_verify failed for username: " . $username);
         }
 
-        $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Invalid credentials']));
+        $response->getBody()->write(json_encode(['message' => 'Invalid credentials']));
         return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
     }
 }

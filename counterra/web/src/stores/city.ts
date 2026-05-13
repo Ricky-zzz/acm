@@ -1,18 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-
-export interface City {
-    id?: number; 
-    name: string;
-    councilor_limit: number;
-    created_at?: string;
-}
-
-export interface ApiResponse<T> {
-    status: string;
-    data: T;
-    message?: string;
-}
+import type { City } from '../types'
+import { useToastStore } from './toast'
 
 export const useCityStore = defineStore('city', {
   state: () => ({
@@ -22,10 +11,8 @@ export const useCityStore = defineStore('city', {
   actions: {
     async fetchCities() {
       try {
-        const response = await axios.get<ApiResponse<City[]>>('http://localhost/acm/counterra/api/cities')
-        if (response.data.status === 'success') {
-          this.cities = response.data.data
-        }
+        const response = await axios.get<City[]>('/cities')
+        this.cities = response.data
       } catch (error) {
         console.error('Error fetching cities:', error)
       }
@@ -33,15 +20,15 @@ export const useCityStore = defineStore('city', {
 
     async addCity(name: string, limit: number): Promise<boolean> {
       try {
-        const response = await axios.post<ApiResponse<City>>('http://localhost/acm/counterra/api/cities', {
+        const toast = useToastStore()
+        const response = await axios.post<City>('/cities', {
           name,
           councilor_limit: limit
         })
-        if (response.data.status === 'success' && response.data.data) {
-          this.cities.push(response.data.data)
-          return true
-        }
-        return false
+
+        this.cities.push(response.data)
+        toast.success('City created')
+        return true
       } catch (error) {
         console.error('Error adding city:', error)
         return false
@@ -50,15 +37,15 @@ export const useCityStore = defineStore('city', {
 
     async updateCity(id: number, name: string, limit: number): Promise<boolean> {
       try {
-        const response = await axios.put<ApiResponse<City>>(`http://localhost/acm/counterra/api/cities/${id}`, {
+        const toast = useToastStore()
+        await axios.put<City>(`/cities/${id}`, {
           name,
           councilor_limit: limit
         })
-        if (response.data.status === 'success') {
-          await this.fetchCities()
-          return true
-        }
-        return false
+
+        await this.fetchCities()
+        toast.success('City updated')
+        return true
       } catch (error) {
         console.error('Error updating city:', error)
         return false
@@ -67,12 +54,11 @@ export const useCityStore = defineStore('city', {
 
     async deleteCity(id: number): Promise<boolean> {
       try {
-        const response = await axios.delete<ApiResponse<void>>(`http://localhost/acm/counterra/api/cities/${id}`)
-        if (response.data.status === 'success') {
-          await this.fetchCities()
-          return true
-        }
-        return false
+        const toast = useToastStore()
+        await axios.delete(`/cities/${id}`)
+        await this.fetchCities()
+        toast.success('City deleted')
+        return true
       } catch (error) {
         console.error('Error deleting city:', error)
         return false

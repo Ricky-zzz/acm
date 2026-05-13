@@ -4,10 +4,8 @@ export interface User {
 }
 
 export interface AuthResponse {
-    status: 'success' | 'error';
-    user?: User;
-    token?: string;
-    message?: string;
+    token: string;
+    user: User;
 }
 
 export interface City {
@@ -26,8 +24,7 @@ export interface Position {
     created_at?: string;
 }
 
-export interface ApiResponse<T> {
-    status: string;
-    data: T;
-    message?: string;
+export interface ApiErrorResponse {
+    message: string;
+    errors?: Record<string, string>;
 }
