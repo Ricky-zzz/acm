@@ -5,18 +5,20 @@ import DashboardView from '../views/dashboard/DashboardView.vue'
 import LoginView from '../views/auth/LoginView.vue'
 import CityListView from '../views/cities/CityListView.vue'
 import PositionListView from '../views/positions/PositionListView.vue'
+import PartyListView from '../views/parties/PartyListView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
   {
     path: '/',
-    component: DashboardLayout, // Use the layout here
+    component: DashboardLayout, 
     redirect: '/dashboard',
     meta: { requiresAuth: true },
     children: [
       { path: 'dashboard', component: DashboardView },
       { path: 'cities', component: CityListView },
-      { path: 'positions', component: PositionListView }
+      { path: 'positions', component: PositionListView },
+      { path: 'parties', component: PartyListView }
     ]
   }
 ]

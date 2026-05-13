@@ -24,6 +24,13 @@ export interface Position {
     created_at?: string;
 }
 
+export interface Party {
+    id?: number;
+    name: string;
+    alias: string;
+    created_at?: string;
+}
+
 export interface ApiErrorResponse {
     message: string;
     errors?: Record<string, string>;
