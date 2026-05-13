@@ -34,6 +34,13 @@ $app->post('/cities', [\App\Controllers\CityController::class, 'create']);
 $app->put('/cities/{id}', [\App\Controllers\CityController::class, 'update']);
 $app->delete('/cities/{id}', [\App\Controllers\CityController::class, 'delete']);
 $app->get('/cities/{id}', [\App\Controllers\CityController::class, 'getOne']);
+    
+// Parties
+$app->get('/parties', [\App\Controllers\PartyController::class, 'getAll']);
+$app->post('/parties', [\App\Controllers\PartyController::class, 'create']);
+$app->put('/parties/{id}', [\App\Controllers\PartyController::class, 'update']);
+$app->delete('/parties/{id}', [\App\Controllers\PartyController::class, 'delete']);
+$app->get('/parties/{id}', [\App\Controllers\PartyController::class, 'getOne']);
 
 // Positions
 $app->get('/positions', [\App\Controllers\PositionController::class, 'getAll']);
