@@ -49,6 +49,13 @@ $app->put('/positions/{id}', [\App\Controllers\PositionController::class, 'updat
 $app->delete('/positions/{id}', [\App\Controllers\PositionController::class, 'delete']);
 $app->get('/positions/{id}', [\App\Controllers\PositionController::class, 'getOne']);
 
+// Candidates
+$app->get('/candidates', [\App\Controllers\CandidateController::class, 'getAll']);
+$app->post('/candidates', [\App\Controllers\CandidateController::class, 'create']);
+$app->put('/candidates/{id}', [\App\Controllers\CandidateController::class, 'update']);
+$app->delete('/candidates/{id}', [\App\Controllers\CandidateController::class, 'delete']);
+$app->get('/candidates/{id}', [\App\Controllers\CandidateController::class, 'getOne']);
+
 $app->get('/test', function (Request $request, Response $response) {
     $response->getBody()->write(json_encode(['message' => 'API is alive!']));
     return $response->withHeader('Content-Type', 'application/json');

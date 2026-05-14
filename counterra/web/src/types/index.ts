@@ -31,6 +31,18 @@ export interface Party {
     created_at?: string;
 }
 
+export interface Candidate {
+    id?: number;
+    name: string;
+    position_id: number;
+    party_id: number;
+    position_title?: string;
+    city_name?: string;
+    city_id?: number;
+    party_name?: string;
+    party_alias?: string;
+}
+
 export interface ApiErrorResponse {
     message: string;
     errors?: Record<string, string>;
