@@ -43,6 +43,22 @@ export interface Candidate {
     party_alias?: string;
 }
 
+export interface Ballot {
+    id?: number;
+    city_id: number;
+    ballot_number: string;
+    status: 'unused' | 'used';
+    city_name?: string;
+}
+
+export interface BallotSummary {
+    city_id: number;
+    city_name: string;
+    total: number;
+    unused: number;
+    used: number;
+}
+
 export interface ApiErrorResponse {
     message: string;
     errors?: Record<string, string>;

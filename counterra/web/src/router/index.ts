@@ -7,6 +7,7 @@ import CityListView from '../views/cities/CityListView.vue'
 import PositionListView from '../views/positions/PositionListView.vue'
 import PartyListView from '../views/parties/PartyListView.vue'
 import CandidateListView from '../views/candidates/CandidateListView.vue'
+import BallotManagementView from '../views/ballots/BallotManagementView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -20,7 +21,8 @@ const routes = [
       { path: 'cities', component: CityListView },
       { path: 'positions', component: PositionListView },
       { path: 'parties', component: PartyListView },
-      { path: 'candidates', component: CandidateListView }
+      { path: 'candidates', component: CandidateListView },
+      { path: 'ballots', component: BallotManagementView }
     ]
   }
 ]

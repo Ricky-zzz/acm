@@ -56,6 +56,11 @@ $app->put('/candidates/{id}', [\App\Controllers\CandidateController::class, 'upd
 $app->delete('/candidates/{id}', [\App\Controllers\CandidateController::class, 'delete']);
 $app->get('/candidates/{id}', [\App\Controllers\CandidateController::class, 'getOne']);
 
+// Ballots
+$app->get('/ballots', [\App\Controllers\BallotController::class, 'getAll']);
+$app->post('/ballots/generate', [\App\Controllers\BallotController::class, 'generate']);
+$app->get('/cities/{id}/print', [\App\Controllers\BallotController::class, 'printBallots']);
+
 $app->get('/test', function (Request $request, Response $response) {
     $response->getBody()->write(json_encode(['message' => 'API is alive!']));
     return $response->withHeader('Content-Type', 'application/json');

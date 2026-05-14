@@ -1,0 +1,181 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Database;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+
+class BallotController {
+
+    public function getAll(Request $request, Response $response) {
+        $db = (new Database())->getConnection();
+        $query = $request->getQueryParams();
+
+        $sql = "SELECT b.*, c.name as city_name
+                FROM ballots b
+                JOIN cities c ON b.city_id = c.id";
+
+        $conditions = [];
+        $params = [];
+
+        if (!empty($query['status'])) {
+            $conditions[] = "b.status = ?";
+            $params[] = $query['status'];
+        }
+
+        if (!empty($query['city_id'])) {
+            $conditions[] = "b.city_id = ?";
+            $params[] = intval($query['city_id']);
+        }
+
+        if ($conditions) {
+            $sql .= " WHERE " . implode(" AND ", $conditions);
+        }
+
+        $sql .= " ORDER BY c.name ASC, b.id ASC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $ballots = $stmt->fetchAll();
+
+        $response->getBody()->write(json_encode($ballots));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function generate(Request $request, Response $response) {
+        try {
+            $data = $request->getParsedBody();
+            $db = (new Database())->getConnection();
+
+            if (!is_array($data)) {
+                $response->getBody()->write(json_encode([
+                    'message' => 'Invalid request body'
+                ]));
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            }
+
+            $errors = [];
+            if (!isset($data['city_id'])) {
+                $errors['city_id'] = 'City is required';
+            }
+            if (!isset($data['quantity']) || intval($data['quantity']) <= 0) {
+                $errors['quantity'] = 'Quantity must be greater than 0';
+            }
+            if ($errors) {
+                $response->getBody()->write(json_encode([
+                    'message' => 'Validation failed',
+                    'errors' => $errors
+                ]));
+                return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
+            }
+
+            $cityId = intval($data['city_id']);
+            $quantity = intval($data['quantity']);
+
+            $stmt = $db->prepare("SELECT name FROM cities WHERE id = ?");
+            $stmt->execute([$cityId]);
+            $city = $stmt->fetch();
+
+            if (!$city) {
+                $response->getBody()->write(json_encode([
+                    'message' => 'City not found'
+                ]));
+                return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+            }
+
+            $prefix = strtoupper(substr($city['name'], 0, 3));
+            $randomPart = strtoupper(bin2hex(random_bytes(2)));
+
+            $stmt = $db->prepare("INSERT INTO ballots (city_id, ballot_number) VALUES (?, ?)");
+            for ($i = 1; $i <= $quantity; $i++) {
+                $sequence = str_pad((string)$i, 4, '0', STR_PAD_LEFT);
+                $ballotNumber = $prefix . '-' . $randomPart . '-' . $sequence;
+                $stmt->execute([$cityId, $ballotNumber]);
+            }
+
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'count' => $quantity
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                'message' => $e->getMessage()
+            ]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
+    }
+
+    public function printBallots(Request $request, Response $response, array $args) {
+        $cityId = intval($args['id']);
+        $db = (new Database())->getConnection();
+
+        $stmt = $db->prepare("SELECT * FROM cities WHERE id = ?");
+        $stmt->execute([$cityId]);
+        $city = $stmt->fetch();
+
+        if (!$city) {
+            $response->getBody()->write(json_encode([
+                'message' => 'City not found'
+            ]));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+
+        $stmt = $db->prepare("SELECT * FROM positions WHERE city_id = ?");
+        $stmt->execute([$cityId]);
+        $positions = $stmt->fetchAll();
+
+        foreach ($positions as &$pos) {
+            $stmt = $db->prepare("SELECT c.*, par.alias as party_alias
+                FROM candidates c
+                JOIN parties par ON c.party_id = par.id
+                WHERE c.position_id = ?");
+            $stmt->execute([$pos['id']]);
+            $pos['candidates'] = $stmt->fetchAll();
+        }
+        unset($pos);
+
+        $stmt = $db->prepare("SELECT ballot_number FROM ballots WHERE city_id = ? AND status = 'unused'");
+        $stmt->execute([$cityId]);
+        $ballots = $stmt->fetchAll();
+
+        $html = '<html><style>
+            .ballot { border: 2px solid #000; padding: 20px; margin-bottom: 50px; page-break-after: always; font-family: sans-serif; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .pos-title { background: #000; color: #fff; padding: 5px; margin-top: 15px; font-size: 14px; }
+            .candidate { margin: 5px 0; font-size: 12px; }
+            .bubble { border: 1px solid #000; border-radius: 50%; width: 15px; height: 15px; display: inline-block; margin-right: 10px; }
+            .footer { margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px; font-size: 10px; text-align: center; }
+        </style><body>';
+
+        foreach ($ballots as $b) {
+            $html .= '<div class="ballot">';
+            $html .= '<div class="header"><h1>OFFICIAL BALLOT</h1><h3>City of ' . $city['name'] . '</h3></div>';
+
+            foreach ($positions as $p) {
+                $html .= '<div class="pos-title">' . strtoupper($p['title']) . ' (Select ' . $p['max_votes'] . ')</div>';
+                foreach ($p['candidates'] as $can) {
+                    $html .= '<div class="candidate"><span class="bubble"></span> ' . $can['name'] . ' (' . $can['party_alias'] . ')</div>';
+                }
+            }
+
+            $html .= '<div class="footer">Ballot ID: <strong>' . $b['ballot_number'] . '</strong></div>';
+            $html .= '</div>';
+        }
+        $html .= '</body></html>';
+
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        $dompdf->stream('ballots_' . $city['name'] . '.pdf', ['Attachment' => false]);
+
+        return $response;
+    }
+}
