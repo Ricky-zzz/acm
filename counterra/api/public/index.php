@@ -60,6 +60,13 @@ $app->get('/candidates/{id}', [\App\Controllers\CandidateController::class, 'get
 $app->get('/ballots', [\App\Controllers\BallotController::class, 'getAll']);
 $app->post('/ballots/generate', [\App\Controllers\BallotController::class, 'generate']);
 $app->get('/cities/{id}/print', [\App\Controllers\BallotController::class, 'printBallots']);
+$app->get('/cities/{id}/setup-json', [\App\Controllers\BallotController::class, 'exportSetupJson']);
+$app->get('/cities/{id}/setup-csv', [\App\Controllers\BallotController::class, 'exportSetupCsv']);
+
+// Results
+$app->post('/results/import', [\App\Controllers\ResultController::class, 'import']);
+$app->post('/results/import-csv', [\App\Controllers\ResultController::class, 'importCsv']);
+$app->get('/results/{city_id}/tally', [\App\Controllers\ResultController::class, 'getTally']);
 
 $app->get('/test', function (Request $request, Response $response) {
     $response->getBody()->write(json_encode(['message' => 'API is alive!']));

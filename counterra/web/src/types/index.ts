@@ -59,6 +59,30 @@ export interface BallotSummary {
     used: number;
 }
 
+export interface ResultImportItem {
+    ballot_number: string;
+    choices: number[];
+}
+
+export interface ResultImportPayload {
+    city_id: number;
+    results: ResultImportItem[];
+}
+
+export interface ResultImportResponse {
+    status: 'success' | 'error';
+    processed: number;
+    errors: string[];
+}
+
+export interface TallyRow {
+    candidate_id: number;
+    candidate_name: string;
+    position_title: string;
+    party_alias: string;
+    vote_count: number;
+}
+
 export interface ApiErrorResponse {
     message: string;
     errors?: Record<string, string>;

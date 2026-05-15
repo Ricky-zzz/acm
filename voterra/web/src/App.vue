@@ -1,7 +1,8 @@
-<script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <HelloWorld />
+  <router-view />
+  <AppToast />
 </template>
+
+<script setup lang="ts">
+import AppToast from './components/AppToast.vue'
+</script>

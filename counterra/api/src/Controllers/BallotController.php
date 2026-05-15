@@ -178,4 +178,107 @@ class BallotController {
 
         return $response;
     }
+
+    public function exportSetupJson(Request $request, Response $response, array $args) {
+        $cityId = intval($args['id']);
+        $db = (new Database())->getConnection();
+
+        $stmt = $db->prepare("SELECT * FROM cities WHERE id = ?");
+        $stmt->execute([$cityId]);
+        $city = $stmt->fetch();
+
+        if (!$city) {
+            $response->getBody()->write(json_encode([
+                'message' => 'City not found'
+            ]));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+
+        $stmt = $db->prepare("SELECT id, title, max_votes FROM positions WHERE city_id = ? ORDER BY id ASC");
+        $stmt->execute([$cityId]);
+        $positions = $stmt->fetchAll();
+
+        $sql = "SELECT c.id, c.position_id, c.name, par.alias as party_alias
+                FROM candidates c
+                JOIN parties par ON c.party_id = par.id
+                JOIN positions p ON c.position_id = p.id
+                WHERE p.city_id = ?
+                ORDER BY p.id ASC, c.name ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$cityId]);
+        $candidates = $stmt->fetchAll();
+
+        $stmt = $db->prepare("SELECT ballot_number FROM ballots WHERE city_id = ? AND status = 'unused'");
+        $stmt->execute([$cityId]);
+        $ballots = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        $payload = [
+            'city' => $city,
+            'positions' => $positions,
+            'candidates' => $candidates,
+            'valid_ballots' => $ballots
+        ];
+
+        $response->getBody()->write(json_encode($payload));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function exportSetupCsv(Request $request, Response $response, array $args) {
+        $cityId = intval($args['id']);
+        $db = (new Database())->getConnection();
+
+        $stmt = $db->prepare("SELECT * FROM cities WHERE id = ?");
+        $stmt->execute([$cityId]);
+        $city = $stmt->fetch();
+
+        if (!$city) {
+            $response->getBody()->write(json_encode([
+                'message' => 'City not found'
+            ]));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+
+        $stmt = $db->prepare("SELECT id, title, max_votes FROM positions WHERE city_id = ? ORDER BY id ASC");
+        $stmt->execute([$cityId]);
+        $positions = $stmt->fetchAll();
+
+        $sql = "SELECT c.id, c.position_id, c.name, par.alias as party_alias
+                FROM candidates c
+                JOIN parties par ON c.party_id = par.id
+                JOIN positions p ON c.position_id = p.id
+                WHERE p.city_id = ?
+                ORDER BY p.id ASC, c.name ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$cityId]);
+        $candidates = $stmt->fetchAll();
+
+        $stmt = $db->prepare("SELECT ballot_number FROM ballots WHERE city_id = ? AND status = 'unused'");
+        $stmt->execute([$cityId]);
+        $ballots = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        $stream = fopen('php://memory', 'w+');
+        fputcsv($stream, ['TYPE', 'ID', 'NAME', 'POSITION_ID', 'TITLE', 'MAX_VOTES', 'PARTY_ALIAS', 'BALLOT_NUMBER']);
+        fputcsv($stream, ['CITY', $city['id'], $city['name'], $city['councilor_limit'] ?? 0]);
+
+        foreach ($positions as $pos) {
+            fputcsv($stream, ['POSITION', $pos['id'], $pos['title'], $pos['max_votes']]);
+        }
+
+        foreach ($candidates as $can) {
+            fputcsv($stream, ['CANDIDATE', $can['id'], $can['position_id'], $can['name'], $can['party_alias']]);
+        }
+
+        foreach ($ballots as $num) {
+            fputcsv($stream, ['BALLOT', $num]);
+        }
+
+        rewind($stream);
+        $csvContent = stream_get_contents($stream);
+        fclose($stream);
+
+        $response->getBody()->write($csvContent);
+        return $response
+            ->withHeader('Content-Type', 'text/csv')
+            ->withHeader('Content-Disposition', 'attachment; filename="setup_city_' . $cityId . '.csv"');
+    }
 }

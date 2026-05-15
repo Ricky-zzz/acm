@@ -8,6 +8,7 @@ import PositionListView from '../views/positions/PositionListView.vue'
 import PartyListView from '../views/parties/PartyListView.vue'
 import CandidateListView from '../views/candidates/CandidateListView.vue'
 import BallotManagementView from '../views/ballots/BallotManagementView.vue'
+import ResultView from '../views/results/ResultView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -22,7 +23,8 @@ const routes = [
       { path: 'positions', component: PositionListView },
       { path: 'parties', component: PartyListView },
       { path: 'candidates', component: CandidateListView },
-      { path: 'ballots', component: BallotManagementView }
+      { path: 'ballots', component: BallotManagementView },
+      { path: 'export', component: ResultView }
     ]
   }
 ]
