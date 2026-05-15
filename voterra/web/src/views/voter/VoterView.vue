@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useElectionStore } from '../../stores/election'
+import { useResultStore } from '../../stores/result'
 import type { SetupCandidate } from '../../types'
 
 const electionStore = useElectionStore()
+const resultStore = useResultStore()
 
 const step = ref(1)
 const ballotNumber = ref('')
@@ -12,7 +14,10 @@ const errorMessage = ref('')
 const selections = reactive<Record<number, number[]>>({})
 
 onMounted(async () => {
-  await electionStore.fetchSetup()
+  await Promise.all([
+    electionStore.fetchSetup(),
+    resultStore.fetchStats()
+  ])
 })
 
 const cityName = computed(() => electionStore.settings?.city_name || 'Voting Machine')
@@ -30,6 +35,17 @@ const candidatesByPosition = computed(() => {
 
 const isConfigured = computed(() => {
   return electionStore.positions.length > 0 && electionStore.candidates.length > 0
+})
+
+const ballotsAvailable = computed(() => {
+  const stats = resultStore.stats
+  if (!stats) return null
+  return Math.max(stats.total_ballots - stats.used_ballots, 0)
+})
+
+const isBallotInventoryExhausted = computed(() => {
+  if (!isConfigured.value || ballotsAvailable.value === null) return false
+  return ballotsAvailable.value === 0 && resultStore.stats!.total_ballots > 0
 })
 
 const selectedChoices = computed(() => {
@@ -123,7 +139,22 @@ const resetMachine = () => {
         <p class="text-sm text-zinc-500">Please follow the on-screen instructions to cast your vote.</p>
       </header>
 
-      <div v-if="step === 1" class="max-w-xl mx-auto bg-white border-2 border-black rounded-3xl p-8 shadow-[8px_8px_0_#000]">
+      <div v-if="!isConfigured" class="max-w-xl mx-auto bg-black text-white rounded-3xl p-10 text-center space-y-4 shadow-[8px_8px_0_#000]">
+        <div class="text-3xl font-bold">Machine Not Ready</div>
+        <p class="text-lg">This voting machine has not been configured yet.</p>
+        <p class="text-sm text-zinc-300">Please contact the admin to import the setup file before any voter can proceed.</p>
+      </div>
+
+      <div v-else-if="isBallotInventoryExhausted" class="max-w-xl mx-auto bg-black text-white rounded-3xl p-10 text-center space-y-4 shadow-[8px_8px_0_#000]">
+        <div class="text-3xl font-bold">Ballot Inventory Exhausted</div>
+        <p class="text-lg">All authorized ballots have already been used.</p>
+        <p class="text-sm text-zinc-300">Import more ballots from the admin screen before accepting the next voter.</p>
+        <div class="pt-2 text-xs uppercase tracking-[0.2em] text-zinc-400">
+          Remaining Ballots: {{ ballotsAvailable }}
+        </div>
+      </div>
+
+      <div v-else-if="step === 1" class="max-w-xl mx-auto bg-white border-2 border-black rounded-3xl p-8 shadow-[8px_8px_0_#000]">
         <h2 class="text-2xl font-semibold mb-4">Step 1: Enter Ballot ID</h2>
         <input
           v-model="ballotNumber"
@@ -139,9 +170,6 @@ const resetMachine = () => {
         >
           Continue
         </button>
-        <p v-if="!isConfigured" class="mt-4 text-sm text-zinc-500">
-          This machine is not configured yet. Please contact the admin.
-        </p>
         <p v-if="errorMessage" class="mt-4 text-red-600 font-semibold">{{ errorMessage }}</p>
       </div>
 

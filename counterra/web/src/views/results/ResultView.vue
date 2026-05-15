@@ -3,17 +3,15 @@ import { computed, onMounted, ref } from 'vue'
 import { useCityStore } from '../../stores/city'
 import { useBallotStore } from '../../stores/ballot'
 import { useResultStore } from '../../stores/result'
-import type { ResultImportPayload, ResultImportResponse } from '../../types'
+import type { ResultImportResponse } from '../../types'
 
 const cityStore = useCityStore()
 const ballotStore = useBallotStore()
 const resultStore = useResultStore()
 
 const selectedCity = ref(0)
-const fileError = ref('')
 const csvFileError = ref('')
 const importResponse = ref<ResultImportResponse | null>(null)
-const importPayload = ref<ResultImportPayload | null>(null)
 const csvFile = ref<File | null>(null)
 
 onMounted(async () => {
@@ -45,54 +43,10 @@ const groupedTally = computed(() => {
   return Array.from(map.entries())
 })
 
-const handleFileChange = async (event: Event) => {
-  fileError.value = ''
-  importPayload.value = null
-
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  try {
-    const text = await file.text()
-    const parsed = JSON.parse(text) as ResultImportPayload
-
-    if (!parsed || !parsed.city_id || !Array.isArray(parsed.results)) {
-      fileError.value = 'Invalid JSON format. Missing city_id or results.'
-      return
-    }
-
-    importPayload.value = parsed
-  } catch (error) {
-    fileError.value = 'Failed to parse JSON file.'
-  }
-}
-
 const handleCsvChange = (event: Event) => {
   csvFileError.value = ''
   const target = event.target as HTMLInputElement
   csvFile.value = target.files?.[0] || null
-}
-
-const importResults = async () => {
-  fileError.value = ''
-  importResponse.value = null
-
-  if (!importPayload.value) {
-    fileError.value = 'Please select a valid results JSON file.'
-    return
-  }
-
-  const response = await resultStore.importResults(importPayload.value)
-  if (response) {
-    importResponse.value = response
-    await ballotStore.fetchBallots()
-    if (selectedCity.value) {
-      await resultStore.fetchTally(selectedCity.value)
-    }
-  } else {
-    fileError.value = 'Import failed. Check the server logs.'
-  }
 }
 
 const importResultsCsv = async () => {
@@ -142,19 +96,6 @@ const refreshTally = async () => {
           </select>
         </div>
         <div>
-          <label class="block text-xs font-bold text-zinc-400 uppercase mb-2">Results JSON</label>
-          <input @change="handleFileChange" type="file" accept="application/json" class="w-full text-sm" />
-        </div>
-        <div>
-          <button
-            :disabled="selectedCity === 0"
-            @click="importResults"
-            class="w-full bg-zinc-900 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-          >
-            Import JSON
-          </button>
-        </div>
-        <div>
           <label class="block text-xs font-bold text-zinc-400 uppercase mb-2">Results CSV</label>
           <input @change="handleCsvChange" type="file" accept="text/csv" class="w-full text-sm" />
         </div>
@@ -167,10 +108,6 @@ const refreshTally = async () => {
             Import CSV
           </button>
         </div>
-      </div>
-
-      <div v-if="fileError" class="mt-4 text-sm text-red-600">
-        {{ fileError }}
       </div>
 
       <div v-if="csvFileError" class="mt-4 text-sm text-red-600">

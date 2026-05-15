@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const navLinks = computed(() => [
   { name: 'Admin Config', path: '/admin-config' },
@@ -11,6 +13,11 @@ const navLinks = computed(() => [
 
 const goToVoter = () => {
   router.push('/')
+}
+
+const logout = () => {
+  authStore.logout()
+  router.push('/admin-login')
 }
 </script>
 
@@ -22,12 +29,20 @@ const goToVoter = () => {
           <div class="text-xs uppercase tracking-[0.25em] text-zinc-500">Voterra Admin</div>
           <h1 class="text-3xl font-semibold">Machine Control Center</h1>
         </div>
-        <button
-          @click="goToVoter"
-          class="border border-zinc-300 px-4 py-2 text-sm rounded-full hover:border-zinc-500"
-        >
-          Go to Voter Screen
-        </button>
+        <div class="flex items-center gap-3">
+          <button
+            @click="goToVoter"
+            class="border border-zinc-300 px-4 py-2 text-sm rounded-full hover:border-zinc-500"
+          >
+            Go to Voter Screen
+          </button>
+          <button
+            @click="logout"
+            class="border border-zinc-300 px-4 py-2 text-sm rounded-full hover:border-zinc-500"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
       <div class="flex flex-col lg:flex-row gap-6">

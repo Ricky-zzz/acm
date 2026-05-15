@@ -9,6 +9,7 @@ const electionStore = useElectionStore()
 
 const parentEndpoint = ref('http://localhost/acm/counterra/api/results/import')
 const transmitError = ref('')
+const exportScope = ref<'untransmitted' | 'all'>('untransmitted')
 
 onMounted(async () => {
   await electionStore.fetchSetup()
@@ -27,13 +28,19 @@ const groupedTally = computed(() => {
   return Array.from(map.entries())
 })
 
+const csvExportHref = computed(() => {
+  const scope = exportScope.value
+  const mark = scope === 'untransmitted' ? '1' : '0'
+  return `http://localhost/acm/voterra/api/results/export-csv?scope=${scope}&mark=${mark}`
+})
+
 const transmitToParent = async () => {
   transmitError.value = ''
   if (!parentEndpoint.value) {
     transmitError.value = 'Parent endpoint is required.'
     return
   }
-  const success = await resultStore.transmitToParent(parentEndpoint.value)
+  const success = await resultStore.transmitToParent(parentEndpoint.value, exportScope.value)
   if (!success) {
     transmitError.value = 'Transmission failed.'
   }
@@ -78,6 +85,13 @@ const refresh = async () => {
             type="text"
             class="flex-1 px-4 py-2 border border-zinc-200 rounded-lg text-sm"
           />
+          <select
+            v-model="exportScope"
+            class="px-4 py-2 border border-zinc-200 rounded-lg text-sm"
+          >
+            <option value="untransmitted">Untransmitted only</option>
+            <option value="all">All (including transmitted)</option>
+          </select>
           <button
             @click="transmitToParent"
             class="px-5 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium"
@@ -85,7 +99,7 @@ const refresh = async () => {
             Transmit (3G)
           </button>
           <a
-            href="http://localhost/acm/voterra/api/results/export-csv"
+            :href="csvExportHref"
             class="px-5 py-2 border border-zinc-200 rounded-lg text-sm font-medium text-center"
           >
             Download CSV

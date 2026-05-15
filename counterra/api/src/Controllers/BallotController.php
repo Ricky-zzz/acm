@@ -143,17 +143,27 @@ class BallotController {
         $ballots = $stmt->fetchAll();
 
         $html = '<html><style>
-            .ballot { border: 2px solid #000; padding: 20px; margin-bottom: 50px; page-break-after: always; font-family: sans-serif; }
-            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            @page { margin: 14mm; }
+            body { font-family: Arial, Helvetica, sans-serif; color: #000; }
+            .ballot { border: 2px solid #000; padding: 18px 20px 22px; margin-bottom: 24px; page-break-after: always; }
+            .topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 10px; }
+            .seal { border: 2px solid #000; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; flex: 1; }
+            .header h1 { margin: 0; font-size: 28px; letter-spacing: 1px; }
+            .header h3 { margin: 8px 0 0; font-size: 15px; font-weight: 700; }
             .pos-title { background: #000; color: #fff; padding: 5px; margin-top: 15px; font-size: 14px; }
-            .candidate { margin: 5px 0; font-size: 12px; }
-            .bubble { border: 1px solid #000; border-radius: 50%; width: 15px; height: 15px; display: inline-block; margin-right: 10px; }
-            .footer { margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px; font-size: 10px; text-align: center; }
+            .candidate { margin: 5px 0; font-size: 12px; display: flex; align-items: center; }
+            .bubble { border: 1px solid #000; border-radius: 50%; width: 14px; height: 14px; display: inline-block; margin-right: 10px; flex: 0 0 14px; }
+            .footer { margin-top: 20px; border-top: 1px dashed #000; padding-top: 10px; font-size: 10px; text-align: center; }
         </style><body>';
 
         foreach ($ballots as $b) {
             $html .= '<div class="ballot">';
+            $html .= '<div class="topline">';
+            $html .= '<div class="seal">Official Use<br>Election Ballot</div>';
             $html .= '<div class="header"><h1>OFFICIAL BALLOT</h1><h3>City of ' . $city['name'] . '</h3></div>';
+            $html .= '<div class="seal">Ballot No.<br>' . htmlspecialchars($b['ballot_number']) . '</div>';
+            $html .= '</div>';
 
             foreach ($positions as $p) {
                 $html .= '<div class="pos-title">' . strtoupper($p['title']) . ' (Select ' . $p['max_votes'] . ')</div>';
@@ -162,7 +172,7 @@ class BallotController {
                 }
             }
 
-            $html .= '<div class="footer">Ballot ID: <strong>' . $b['ballot_number'] . '</strong></div>';
+            $html .= '<div class="footer">Ballot ID: <strong>' . htmlspecialchars($b['ballot_number']) . '</strong></div>';
             $html .= '</div>';
         }
         $html .= '</body></html>';
@@ -257,19 +267,19 @@ class BallotController {
         $ballots = $stmt->fetchAll(\PDO::FETCH_COLUMN);
 
         $stream = fopen('php://memory', 'w+');
-        fputcsv($stream, ['TYPE', 'ID', 'NAME', 'POSITION_ID', 'TITLE', 'MAX_VOTES', 'PARTY_ALIAS', 'BALLOT_NUMBER']);
-        fputcsv($stream, ['CITY', $city['id'], $city['name'], $city['councilor_limit'] ?? 0]);
+        fputcsv($stream, ['TYPE', 'ID', 'NAME', 'POSITION_ID', 'TITLE', 'MAX_VOTES', 'PARTY_ALIAS', 'BALLOT_NUMBER'], ',', '"', '\\');
+        fputcsv($stream, ['CITY', $city['id'], $city['name'], $city['councilor_limit'] ?? 0], ',', '"', '\\');
 
         foreach ($positions as $pos) {
-            fputcsv($stream, ['POSITION', $pos['id'], $pos['title'], $pos['max_votes']]);
+            fputcsv($stream, ['POSITION', $pos['id'], $pos['title'], $pos['max_votes']], ',', '"', '\\');
         }
 
         foreach ($candidates as $can) {
-            fputcsv($stream, ['CANDIDATE', $can['id'], $can['position_id'], $can['name'], $can['party_alias']]);
+            fputcsv($stream, ['CANDIDATE', $can['id'], $can['position_id'], $can['name'], $can['party_alias']], ',', '"', '\\');
         }
 
         foreach ($ballots as $num) {
-            fputcsv($stream, ['BALLOT', $num]);
+            fputcsv($stream, ['BALLOT', $num], ',', '"', '\\');
         }
 
         rewind($stream);

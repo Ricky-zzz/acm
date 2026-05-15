@@ -15,6 +15,36 @@ class ResultController {
         return $value !== false ? (string)$value : null;
     }
 
+        private function getExportOptions(Request $request): array {
+            $params = $request->getQueryParams();
+            $scope = strtolower((string)($params['scope'] ?? 'untransmitted'));
+            if ($scope !== 'all' && $scope !== 'untransmitted') {
+                $scope = 'untransmitted';
+            }
+
+            $mark = (string)($params['mark'] ?? '0') === '1';
+            if ($scope === 'all') {
+                $mark = false;
+            }
+
+            return [$scope, $mark];
+        }
+
+        private function fetchExportRows($db, string $scope): array {
+            $sql = "SELECT ballot_number, candidate_id FROM local_votes";
+            if ($scope === 'untransmitted') {
+                $sql .= " WHERE is_transmitted = 0";
+            }
+            $sql .= " ORDER BY ballot_number ASC";
+
+            $stmt = $db->query($sql);
+            return $stmt->fetchAll();
+        }
+
+        private function markTransmitted($db): void {
+            $db->exec("UPDATE local_votes SET is_transmitted = 1 WHERE is_transmitted = 0");
+        }
+
     public function getStats(Request $request, Response $response) {
         $db = (new Database())->getConnection();
 
@@ -61,8 +91,8 @@ class ResultController {
             return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
         }
 
-        $stmt = $db->query("SELECT ballot_number, candidate_id FROM local_votes ORDER BY ballot_number ASC");
-        $rows = $stmt->fetchAll();
+            [$scope, $mark] = $this->getExportOptions($request);
+            $rows = $this->fetchExportRows($db, $scope);
 
         $map = [];
         foreach ($rows as $row) {
@@ -81,6 +111,10 @@ class ResultController {
             ];
         }
 
+            if ($mark && !empty($rows)) {
+                $this->markTransmitted($db);
+            }
+
         $response->getBody()->write(json_encode([
             'city_id' => intval($cityId),
             'results' => $results
@@ -98,8 +132,8 @@ class ResultController {
             return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
         }
 
-        $stmt = $db->query("SELECT ballot_number, candidate_id FROM local_votes ORDER BY ballot_number ASC");
-        $rows = $stmt->fetchAll();
+            [$scope, $mark] = $this->getExportOptions($request);
+            $rows = $this->fetchExportRows($db, $scope);
 
         $stream = fopen('php://memory', 'w+');
         fputcsv($stream, ['TYPE', 'BALLOT_NUMBER', 'CANDIDATE_ID']);
@@ -112,6 +146,10 @@ class ResultController {
                 $row['candidate_id']
             ]);
         }
+
+            if ($mark && !empty($rows)) {
+                $this->markTransmitted($db);
+            }
 
         rewind($stream);
         $csvContent = stream_get_contents($stream);

@@ -66,7 +66,7 @@ const importFromUrl = async () => {
 
   try {
     const response = await axios.get(importUrl.value, { responseType: 'text' })
-    const contentType = response.headers['content-type'] || ''
+    const contentType = String(response.headers['content-type'] ?? '')
 
     if (contentType.includes('application/json') || importUrl.value.endsWith('.json')) {
       const payload = JSON.parse(response.data) as SetupPayload
