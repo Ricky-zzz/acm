@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Crypto;
 use App\Database;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -15,6 +16,22 @@ class ResultController {
         if (!is_array($data)) {
             $response->getBody()->write(json_encode([
                 'message' => 'Invalid request body'
+            ]));
+            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+        }
+
+        if (!Crypto::isEnvelope($data)) {
+            $response->getBody()->write(json_encode([
+                'message' => 'Encrypted results payload required'
+            ]));
+            return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
+        }
+
+        try {
+            $data = Crypto::decryptEnvelopeToArray($data, Crypto::AAD_RESULTS_V1);
+        } catch (\RuntimeException $e) {
+            $response->getBody()->write(json_encode([
+                'message' => $e->getMessage()
             ]));
             return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
         }

@@ -26,6 +26,7 @@ $app->add(function ($request, $handler) {
 $app->get('/setup/status', [\App\Controllers\SetupController::class, 'status']);
 $app->post('/setup/import', [\App\Controllers\SetupController::class, 'importJson']);
 $app->post('/setup/import-csv', [\App\Controllers\SetupController::class, 'importCsv']);
+$app->post('/setup/wipe', [\App\Controllers\SetupController::class, 'wipe']);
 
 // Local data
 $app->get('/positions', [\App\Controllers\PositionController::class, 'getAll']);

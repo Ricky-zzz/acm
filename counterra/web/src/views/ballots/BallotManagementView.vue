@@ -74,9 +74,9 @@ const printPdf = (cityId: number) => {
   window.open(`http://localhost/acm/counterra/api/cities/${cityId}/print`, '_blank')
 }
 
-const exportSetupCsv = (cityId: number) => {
+const exportSetupJson = (cityId: number) => {
   if (!cityId) return
-  window.open(`http://localhost/acm/counterra/api/cities/${cityId}/setup-csv`, '_blank')
+  window.open(`http://localhost/acm/counterra/api/cities/${cityId}/setup-json?download=1&encrypted=1`, '_blank')
 }
 </script>
 
@@ -195,11 +195,11 @@ const exportSetupCsv = (cityId: number) => {
                   Print PDF
                 </button>
                 <button
-                  @click="exportSetupCsv(row.city_id)"
+                  @click="exportSetupJson(row.city_id)"
                   class="text-zinc-500 hover:text-zinc-900 px-2"
                   :disabled="row.total === 0"
                 >
-                  Export Setup
+                  Export Setup (Encrypted JSON)
                 </button>
               </td>
             </tr>

@@ -3,6 +3,7 @@ import VoterView from '../views/voter/VoterView.vue'
 import AdminConfigView from '../views/admin/AdminConfigView.vue'
 import AdminTransmissionView from '../views/admin/AdminTransmissionView.vue'
 import AdminTallyView from '../views/admin/AdminTallyView.vue'
+import AdminCleanupView from '../views/admin/AdminCleanupView.vue'
 import AdminLoginView from '../views/admin/AdminLoginView.vue'
 import { useAuthStore } from '../stores/auth'
 
@@ -12,6 +13,7 @@ const routes = [
   { path: '/admin-config', component: AdminConfigView, meta: { requiresAuth: true } },
   { path: '/admin-transmission', component: AdminTransmissionView, meta: { requiresAuth: true } },
   { path: '/admin-tally', component: AdminTallyView, meta: { requiresAuth: true } },
+  { path: '/admin-cleanup', component: AdminCleanupView, meta: { requiresAuth: true } },
   { path: '/admin-results', redirect: '/admin-transmission', meta: { requiresAuth: true } }
 ]
 

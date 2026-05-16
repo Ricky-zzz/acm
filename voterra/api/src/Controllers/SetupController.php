@@ -2,11 +2,29 @@
 
 namespace App\Controllers;
 
+use App\Crypto;
 use App\Database;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 class SetupController {
+
+    private function json(Response $response, array $data, int $status = 200): Response {
+        $response->getBody()->write(json_encode($data));
+        return $response->withStatus($status)->withHeader('Content-Type', 'application/json');
+    }
+
+    private function configuredCityId($db): ?string {
+        $stmt = $db->prepare("SELECT `value` FROM settings WHERE `key` = ?");
+        $stmt->execute(['city_id']);
+        $value = $stmt->fetchColumn();
+
+        if ($value === false || $value === null || $value === '') {
+            return null;
+        }
+
+        return (string)$value;
+    }
 
     private function resetMachine($db): void {
         $db->exec("DELETE FROM local_votes");
@@ -40,8 +58,17 @@ class SetupController {
         $db = (new Database())->getConnection();
 
         if (!is_array($data)) {
-            $response->getBody()->write(json_encode(['message' => 'Invalid request body']));
-            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            return $this->json($response, ['message' => 'Invalid request body'], 400);
+        }
+
+        if (!Crypto::isEnvelope($data)) {
+            return $this->json($response, ['message' => 'Encrypted setup payload required'], 422);
+        }
+
+        try {
+            $data = Crypto::decryptEnvelopeToArray($data, Crypto::AAD_SETUP_V1);
+        } catch (\RuntimeException $e) {
+            return $this->json($response, ['message' => 'Decryption failed: ' . $e->getMessage()], 400);
         }
 
         $city = $data['city'] ?? null;
@@ -50,13 +77,45 @@ class SetupController {
         $validBallots = $data['valid_ballots'] ?? [];
 
         if (!is_array($city) || empty($city['id']) || empty($city['name'])) {
-            $response->getBody()->write(json_encode(['message' => 'City is required']));
-            return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
+            return $this->json($response, ['message' => 'City is required'], 422);
         }
 
         if (!is_array($positions) || !is_array($candidates) || !is_array($validBallots)) {
-            $response->getBody()->write(json_encode(['message' => 'Invalid setup payload']));
-            return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
+            return $this->json($response, ['message' => 'Invalid setup payload'], 422);
+        }
+
+        $incomingCityId = (string)$city['id'];
+        $currentCityId = $this->configuredCityId($db);
+
+        if ($currentCityId !== null && $currentCityId !== $incomingCityId) {
+            return $this->json($response, [
+                'message' => 'City mismatch: machine configured for a different city. Use Cleanup -> Wipe to reconfigure.'
+            ], 409);
+        }
+
+        if ($currentCityId !== null) {
+            try {
+                $stmt = $db->prepare("INSERT IGNORE INTO authorized_ballots (ballot_number) VALUES (?)");
+                $added = 0;
+
+                foreach ($validBallots as $num) {
+                    if ((string)$num === '') {
+                        continue;
+                    }
+
+                    $stmt->execute([(string)$num]);
+                    $added += $stmt->rowCount();
+                }
+
+                return $this->json($response, [
+                    'status' => 'Ballots imported successfully',
+                    'message' => $added > 0
+                        ? "Added {$added} new ballot(s) for the current city."
+                        : 'No new ballots were added. They may already be authorized.'
+                ]);
+            } catch (\Exception $e) {
+                return $this->json($response, ['status' => 'error', 'message' => $e->getMessage()], 500);
+            }
         }
 
         $db->beginTransaction();
@@ -91,12 +150,24 @@ class SetupController {
             }
 
             $db->commit();
-            $response->getBody()->write(json_encode(['status' => 'Machine Initialized Successfully']));
-            return $response->withHeader('Content-Type', 'application/json');
+            return $this->json($response, ['status' => 'Machine Initialized Successfully']);
         } catch (\Exception $e) {
             $db->rollBack();
-            $response->getBody()->write(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
-            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+            return $this->json($response, ['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function wipe(Request $request, Response $response) {
+        $db = (new Database())->getConnection();
+        $db->beginTransaction();
+
+        try {
+            $this->resetMachine($db);
+            $db->commit();
+            return $this->json($response, ['status' => 'Machine wiped successfully']);
+        } catch (\Exception $e) {
+            $db->rollBack();
+            return $this->json($response, ['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 

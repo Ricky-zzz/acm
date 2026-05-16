@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Crypto;
 use App\Database;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -85,6 +86,9 @@ class ResultController {
     public function exportJson(Request $request, Response $response) {
         $db = (new Database())->getConnection();
         $cityId = $this->getSetting($db, 'city_id');
+        $query = $request->getQueryParams();
+        $download = (string)($query['download'] ?? '0') === '1';
+        $encrypted = (string)($query['encrypted'] ?? '0') === '1';
 
         if (!$cityId) {
             $response->getBody()->write(json_encode(['message' => 'Machine not configured']));
@@ -115,12 +119,37 @@ class ResultController {
                 $this->markTransmitted($db);
             }
 
-        $response->getBody()->write(json_encode([
-            'city_id' => intval($cityId),
-            'results' => $results
-        ]));
+        try {
+            $payload = [
+                'city_id' => intval($cityId),
+                'results' => $results
+            ];
 
-        return $response->withHeader('Content-Type', 'application/json');
+            $out = $payload;
+            if ($encrypted) {
+                $out = Crypto::encryptJson($payload, Crypto::AAD_RESULTS_V1);
+            }
+
+            $json = json_encode($out);
+            if ($json === false) {
+                $response->getBody()->write(json_encode(['message' => 'Unable to encode JSON']));
+                return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+            }
+
+            $response->getBody()->write($json);
+            $response = $response->withHeader('Content-Type', 'application/json');
+            if ($download) {
+                $filename = $encrypted
+                    ? 'results_' . intval($cityId) . '.enc.json'
+                    : 'results_' . intval($cityId) . '.json';
+                $response = $response->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            }
+
+            return $response;
+        } catch (\RuntimeException $e) {
+            $response->getBody()->write(json_encode(['message' => $e->getMessage()]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
     }
 
     public function exportCsv(Request $request, Response $response) {

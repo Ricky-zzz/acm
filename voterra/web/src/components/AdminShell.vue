@@ -10,6 +10,7 @@ const navLinks = computed(() => [
   { name: 'Admin Config', path: '/admin-config' },
   { name: 'Transmission', path: '/admin-transmission' },
   { name: 'Local Tally', path: '/admin-tally' },
+  { name: 'Cleanup', path: '/admin-cleanup' },
 ])
 
 const goToVoter = () => {

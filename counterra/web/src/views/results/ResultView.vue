@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useCityStore } from '../../stores/city'
 import { useBallotStore } from '../../stores/ballot'
 import { useResultStore } from '../../stores/result'
-import type { ResultImportResponse } from '../../types'
+import type { EncryptedEnvelope, ResultImportPayload, ResultImportResponse } from '../../types'
 
 const cityStore = useCityStore()
 const ballotStore = useBallotStore()
@@ -12,9 +12,9 @@ const resultStore = useResultStore()
 const activeTab = ref<'import' | 'results'>('import')
 const selectedCity = ref(0)
 const selectedPosition = ref<string>('__ALL__')
-const csvFileError = ref('')
+const jsonFileError = ref('')
 const importResponse = ref<ResultImportResponse | null>(null)
-const csvFile = ref<File | null>(null)
+const jsonPayload = ref<ResultImportPayload | EncryptedEnvelope | null>(null)
 
 onMounted(async () => {
   await cityStore.fetchCities()
@@ -72,27 +72,57 @@ const filteredGroupedTally = computed(() => {
   return groupedTally.value.filter(([title]) => title === selectedPosition.value)
 })
 
-const handleCsvChange = (event: Event) => {
-  csvFileError.value = ''
+const handleJsonChange = async (event: Event) => {
+  jsonFileError.value = ''
+  jsonPayload.value = null
+
   const target = event.target as HTMLInputElement
-  csvFile.value = target.files?.[0] || null
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    const text = await file.text()
+    const parsed = JSON.parse(text) as unknown
+    if (!parsed || typeof parsed !== 'object') {
+      jsonFileError.value = 'Invalid JSON file.'
+      return
+    }
+
+    const maybeEnv = parsed as Partial<EncryptedEnvelope>
+    const isEnvelope =
+      maybeEnv.v === 1 &&
+      maybeEnv.alg === 'A256GCM' &&
+      typeof maybeEnv.iv === 'string' &&
+      typeof maybeEnv.tag === 'string' &&
+      typeof maybeEnv.ct === 'string'
+
+    if (isEnvelope) {
+      jsonPayload.value = parsed as EncryptedEnvelope
+      return
+    }
+
+    jsonFileError.value = 'Encrypted results JSON required.'
+    return
+  } catch {
+    jsonFileError.value = 'Invalid JSON file.'
+  }
 }
 
-const importResultsCsv = async () => {
-  csvFileError.value = ''
+const importResultsJson = async () => {
+  jsonFileError.value = ''
   importResponse.value = null
 
-  if (!csvFile.value) {
-    csvFileError.value = 'Please select a CSV file.'
+  if (!jsonPayload.value) {
+    jsonFileError.value = 'Please select a valid results JSON file.'
     return
   }
 
-  const response = await resultStore.importResultsCsv(csvFile.value)
+  const response = await resultStore.importResults(jsonPayload.value)
   if (response) {
     importResponse.value = response
     await ballotStore.fetchBallots()
   } else {
-    csvFileError.value = 'Import failed. Check the server logs.'
+    jsonFileError.value = 'Import failed. Check the server logs.'
   }
 }
 
@@ -132,25 +162,25 @@ const refreshTally = async () => {
 
     <div v-if="activeTab === 'import'" class="space-y-6">
       <div class="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-zinc-900 mb-4">Import Results (SD Card Simulation)</h2>
+        <h2 class="text-lg font-semibold text-zinc-900 mb-4">Import Results (Encrypted JSON)</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div class="md:col-span-2">
-            <label class="block text-xs font-bold text-zinc-400 uppercase mb-2">Results CSV</label>
-            <input @change="handleCsvChange" type="file" accept="text/csv" class="w-full text-sm" />
+            <label class="block text-xs font-bold text-zinc-400 uppercase mb-2">Encrypted Results JSON</label>
+            <input @change="handleJsonChange" type="file" accept="application/json" class="w-full text-sm" />
           </div>
           <div class="md:col-span-2">
             <button
-              @click="importResultsCsv"
+              @click="importResultsJson"
               class="w-full border border-zinc-200 text-zinc-700 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-              :disabled="!csvFile"
+              :disabled="!jsonPayload"
             >
-              Import CSV
+              Import Encrypted JSON
             </button>
           </div>
         </div>
 
-        <div v-if="csvFileError" class="mt-4 text-sm text-red-600">
-          {{ csvFileError }}
+        <div v-if="jsonFileError" class="mt-4 text-sm text-red-600">
+          {{ jsonFileError }}
         </div>
 
         <div v-if="importResponse" class="mt-4 text-sm text-zinc-700">

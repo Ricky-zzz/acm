@@ -16,6 +16,10 @@ const statusCity = computed(() => {
   return `${setupStore.status.city_name} (#${setupStore.status.city_id})`
 })
 
+const importTitle = computed(() => (
+  setupStore.status?.city_id ? 'Add More Ballots (Top-up)' : 'Import Setup (JSON)'
+))
+
 onMounted(async () => {
   await setupStore.fetchStatus()
 })
@@ -29,6 +33,8 @@ const importJsonFile = async (event: Event) => {
   if (!file) return
 
   try {
+    setupStore.lastError = ''
+    setupStore.lastMessage = ''
     const text = await file.text()
     const payload = JSON.parse(text) as SetupPayload | EncryptedEnvelope
     const isEnvelope =
@@ -65,8 +71,10 @@ const importJsonFile = async (event: Event) => {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4 lg:col-span-2">
           <div>
-            <h3 class="text-base font-semibold">Import Setup (JSON)</h3>
-            <p class="text-sm text-zinc-500">Encrypted JSON required (tamper-evident).</p>
+            <h3 class="text-base font-semibold">{{ importTitle }}</h3>
+            <p class="text-sm text-zinc-500">
+              Encrypted JSON required. If this machine is already configured, imports must match the current city and will only add missing ballot numbers.
+            </p>
           </div>
           <div class="flex flex-col sm:flex-row sm:items-center gap-3">
             <label
@@ -85,6 +93,8 @@ const importJsonFile = async (event: Event) => {
             />
           </div>
           <p v-if="jsonFileError" class="text-sm text-red-600">{{ jsonFileError }}</p>
+          <p v-if="setupStore.lastError" class="text-sm text-red-600">{{ setupStore.lastError }}</p>
+          <p v-if="setupStore.lastMessage" class="text-sm text-emerald-700">{{ setupStore.lastMessage }}</p>
         </div>
       </div>
     </div>

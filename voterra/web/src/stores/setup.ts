@@ -6,6 +6,8 @@ import { useToastStore } from './toast'
 export const useSetupStore = defineStore('setup', {
   state: () => ({
     status: null as SetupStatus | null,
+    lastError: '',
+    lastMessage: '',
     loading: false
   }),
 
@@ -23,14 +25,41 @@ export const useSetupStore = defineStore('setup', {
     },
 
     async importJson(payload: SetupPayload | EncryptedEnvelope): Promise<boolean> {
+      const toast = useToastStore()
+      this.lastError = ''
+      this.lastMessage = ''
+
       try {
-        const toast = useToastStore()
-        await axios.post('/setup/import', payload)
+        const response = await axios.post<{ status?: string; message?: string }>('/setup/import', payload)
         await this.fetchStatus()
-        toast.success('Machine initialized')
+        this.lastMessage = response.data.message || response.data.status || 'Import completed'
+        toast.success(this.lastMessage)
         return true
       } catch (error) {
+        this.lastError = axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Import failed'
+          : 'Import failed'
         console.error('Error importing setup JSON:', error)
+        return false
+      }
+    },
+
+    async wipe(): Promise<boolean> {
+      const toast = useToastStore()
+      this.lastError = ''
+      this.lastMessage = ''
+
+      try {
+        const response = await axios.post<{ status?: string; message?: string }>('/setup/wipe')
+        await this.fetchStatus()
+        this.lastMessage = response.data.message || response.data.status || 'Machine wiped'
+        toast.success(this.lastMessage)
+        return true
+      } catch (error) {
+        this.lastError = axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Wipe failed'
+          : 'Wipe failed'
+        console.error('Error wiping machine:', error)
         return false
       }
     },

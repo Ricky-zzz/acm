@@ -59,6 +59,14 @@ export interface BallotSummary {
     used: number;
 }
 
+export interface EncryptedEnvelope {
+    v: 1;
+    alg: 'A256GCM';
+    iv: string;
+    tag: string;
+    ct: string;
+}
+
 export interface ResultImportItem {
     ballot_number: string;
     choices: number[];

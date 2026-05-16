@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Crypto;
 use App\Database;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -192,6 +193,9 @@ class BallotController {
     public function exportSetupJson(Request $request, Response $response, array $args) {
         $cityId = intval($args['id']);
         $db = (new Database())->getConnection();
+        $query = $request->getQueryParams();
+        $download = (string)($query['download'] ?? '0') === '1';
+        $encrypted = (string)($query['encrypted'] ?? '0') === '1';
 
         $stmt = $db->prepare("SELECT * FROM cities WHERE id = ?");
         $stmt->execute([$cityId]);
@@ -229,8 +233,31 @@ class BallotController {
             'valid_ballots' => $ballots
         ];
 
-        $response->getBody()->write(json_encode($payload));
-        return $response->withHeader('Content-Type', 'application/json');
+        try {
+            $out = $payload;
+            if ($encrypted) {
+                $out = Crypto::encryptJson($payload, Crypto::AAD_SETUP_V1);
+            }
+
+            $json = json_encode($out);
+            if ($json === false) {
+                $response->getBody()->write(json_encode(['message' => 'Unable to encode JSON']));
+                return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+            }
+
+            $response->getBody()->write($json);
+            $response = $response->withHeader('Content-Type', 'application/json');
+            if ($download) {
+                $filename = $encrypted
+                    ? 'setup_city_' . $cityId . '.enc.json'
+                    : 'setup_city_' . $cityId . '.json';
+                $response = $response->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            }
+            return $response;
+        } catch (\RuntimeException $e) {
+            $response->getBody()->write(json_encode(['message' => $e->getMessage()]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
     }
 
     public function exportSetupCsv(Request $request, Response $response, array $args) {
