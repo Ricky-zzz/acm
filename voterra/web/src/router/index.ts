@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import VoterView from '../views/voter/VoterView.vue'
 import AdminConfigView from '../views/admin/AdminConfigView.vue'
-import AdminResultsView from '../views/admin/AdminResultsView.vue'
+import AdminTransmissionView from '../views/admin/AdminTransmissionView.vue'
+import AdminTallyView from '../views/admin/AdminTallyView.vue'
 import AdminLoginView from '../views/admin/AdminLoginView.vue'
 import { useAuthStore } from '../stores/auth'
 
@@ -9,7 +10,9 @@ const routes = [
   { path: '/', component: VoterView },
   { path: '/admin-login', component: AdminLoginView },
   { path: '/admin-config', component: AdminConfigView, meta: { requiresAuth: true } },
-  { path: '/admin-results', component: AdminResultsView, meta: { requiresAuth: true } }
+  { path: '/admin-transmission', component: AdminTransmissionView, meta: { requiresAuth: true } },
+  { path: '/admin-tally', component: AdminTallyView, meta: { requiresAuth: true } },
+  { path: '/admin-results', redirect: '/admin-transmission', meta: { requiresAuth: true } }
 ]
 
 const router = createRouter({

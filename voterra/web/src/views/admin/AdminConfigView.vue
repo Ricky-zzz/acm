@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import axios from 'axios'
 import AdminShell from '../../components/AdminShell.vue'
 import { useSetupStore } from '../../stores/setup'
 import { useElectionStore } from '../../stores/election'
-import type { SetupPayload } from '../../types'
+import type { EncryptedEnvelope, SetupPayload } from '../../types'
 
 const setupStore = useSetupStore()
 const electionStore = useElectionStore()
 
 const jsonFileError = ref('')
-const csvFileError = ref('')
-const networkError = ref('')
-const importUrl = ref('')
+const selectedFileName = ref('')
 
 const statusCity = computed(() => {
   if (!setupStore.status?.city_name) return 'Not configured'
@@ -28,12 +25,25 @@ const importJsonFile = async (event: Event) => {
 
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
+  selectedFileName.value = file?.name ?? ''
   if (!file) return
 
   try {
     const text = await file.text()
-    const payload = JSON.parse(text) as SetupPayload
-    const success = await setupStore.importJson(payload)
+    const payload = JSON.parse(text) as SetupPayload | EncryptedEnvelope
+    const isEnvelope =
+      (payload as EncryptedEnvelope).v === 1 &&
+      (payload as EncryptedEnvelope).alg === 'A256GCM' &&
+      typeof (payload as EncryptedEnvelope).iv === 'string' &&
+      typeof (payload as EncryptedEnvelope).tag === 'string' &&
+      typeof (payload as EncryptedEnvelope).ct === 'string'
+
+    if (!isEnvelope) {
+      jsonFileError.value = 'Encrypted setup JSON required.'
+      return
+    }
+
+    const success = await setupStore.importJson(payload as EncryptedEnvelope)
     if (success) {
       await electionStore.fetchSetup()
     }
@@ -42,50 +52,6 @@ const importJsonFile = async (event: Event) => {
   }
 }
 
-const importCsvFile = async (event: Event) => {
-  csvFileError.value = ''
-
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  const success = await setupStore.importCsv(file)
-  if (success) {
-    await electionStore.fetchSetup()
-  } else {
-    csvFileError.value = 'Failed to import CSV.'
-  }
-}
-
-const importFromUrl = async () => {
-  networkError.value = ''
-  if (!importUrl.value) {
-    networkError.value = 'Please enter a valid URL.'
-    return
-  }
-
-  try {
-    const response = await axios.get(importUrl.value, { responseType: 'text' })
-    const contentType = String(response.headers['content-type'] ?? '')
-
-    if (contentType.includes('application/json') || importUrl.value.endsWith('.json')) {
-      const payload = JSON.parse(response.data) as SetupPayload
-      const success = await setupStore.importJson(payload)
-      if (success) {
-        await electionStore.fetchSetup()
-      }
-      return
-    }
-
-    const blob = new Blob([response.data], { type: 'text/csv' })
-    const success = await setupStore.importCsv(blob)
-    if (success) {
-      await electionStore.fetchSetup()
-    }
-  } catch (error) {
-    networkError.value = 'Failed to fetch or import the setup file.'
-  }
-}
 </script>
 
 <template>
@@ -97,42 +63,29 @@ const importFromUrl = async () => {
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4 lg:col-span-2">
           <div>
             <h3 class="text-base font-semibold">Import Setup (JSON)</h3>
-            <p class="text-sm text-zinc-500">Use this for network-based setup or JSON file exports.</p>
+            <p class="text-sm text-zinc-500">Encrypted JSON required (tamper-evident).</p>
           </div>
-          <input @change="importJsonFile" type="file" accept="application/json" class="text-sm" />
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <label
+              for="setup-json-file"
+              class="inline-flex items-center justify-center px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 cursor-pointer"
+            >
+              Choose JSON file
+            </label>
+            <span class="text-sm text-zinc-500">{{ selectedFileName || 'No file selected' }}</span>
+            <input
+              id="setup-json-file"
+              @change="importJsonFile"
+              type="file"
+              accept="application/json"
+              class="sr-only"
+            />
+          </div>
           <p v-if="jsonFileError" class="text-sm text-red-600">{{ jsonFileError }}</p>
         </div>
-
-        <div class="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4">
-          <div>
-            <h3 class="text-base font-semibold">Import Setup (CSV)</h3>
-            <p class="text-sm text-zinc-500">Use this for the professor-required CSV workflow.</p>
-          </div>
-          <input @change="importCsvFile" type="file" accept="text/csv" class="text-sm" />
-          <p v-if="csvFileError" class="text-sm text-red-600">{{ csvFileError }}</p>
-        </div>
-      </div>
-
-      <div class="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4">
-        <div>
-          <h3 class="text-base font-semibold">Import via Network</h3>
-          <p class="text-sm text-zinc-500">Paste a Countera export URL (JSON or CSV) and import directly.</p>
-        </div>
-        <div class="flex flex-col md:flex-row gap-3">
-          <input
-            v-model="importUrl"
-            type="text"
-            placeholder="http://localhost/acm/counterra/api/cities/1/setup-json"
-            class="flex-1 px-4 py-2 border border-zinc-200 rounded-lg text-sm"
-          />
-          <button @click="importFromUrl" class="px-5 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium">
-            Fetch & Import
-          </button>
-        </div>
-        <p v-if="networkError" class="text-sm text-red-600">{{ networkError }}</p>
       </div>
     </div>
   </AdminShell>

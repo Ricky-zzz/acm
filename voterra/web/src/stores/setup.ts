@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import type { SetupPayload, SetupStatus } from '../types'
+import type { EncryptedEnvelope, SetupPayload, SetupStatus } from '../types'
 import { useToastStore } from './toast'
 
 export const useSetupStore = defineStore('setup', {
@@ -22,7 +22,7 @@ export const useSetupStore = defineStore('setup', {
       }
     },
 
-    async importJson(payload: SetupPayload): Promise<boolean> {
+    async importJson(payload: SetupPayload | EncryptedEnvelope): Promise<boolean> {
       try {
         const toast = useToastStore()
         await axios.post('/setup/import', payload)
@@ -34,23 +34,5 @@ export const useSetupStore = defineStore('setup', {
         return false
       }
     },
-
-    async importCsv(file: File | Blob): Promise<boolean> {
-      try {
-        const toast = useToastStore()
-        const formData = new FormData()
-        const filename = file instanceof File ? file.name : 'setup.csv'
-        formData.append('file', file, filename)
-        await axios.post('/setup/import-csv', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
-        await this.fetchStatus()
-        toast.success('Machine initialized')
-        return true
-      } catch (error) {
-        console.error('Error importing setup CSV:', error)
-        return false
-      }
-    }
   }
 })

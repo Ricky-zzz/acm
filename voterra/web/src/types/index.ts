@@ -4,6 +4,14 @@ export interface SetupCity {
   councilor_limit?: number
 }
 
+export interface EncryptedEnvelope {
+  v: 1
+  alg: 'A256GCM'
+  iv: string
+  tag: string
+  ct: string
+}
+
 export interface SetupPosition {
   id: number
   title: string

@@ -22,10 +22,10 @@ const submit = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f6f4f0] flex items-center justify-center px-6">
+  <div class="min-h-screen bg-zinc-50/50 flex items-center justify-center px-6">
     <div class="w-full max-w-md bg-white border border-zinc-200 rounded-2xl p-8 shadow-sm">
-      <div class="text-xs uppercase tracking-[0.3em] text-zinc-400">Voterra Admin</div>
-      <h1 class="text-2xl font-semibold mt-2">Sign in</h1>
+      <div class="text-xs uppercase tracking-[0.3em] text-zinc-400">Management Console</div>
+      <h1 class="text-2xl font-semibold mt-2">Voterra Admin</h1>
       <p class="text-sm text-zinc-500 mt-2">Use the local admin credentials to access machine controls.</p>
 
       <div class="mt-6 space-y-4">
@@ -34,7 +34,7 @@ const submit = () => {
           <input
             v-model="username"
             type="text"
-            placeholder="admin"
+            placeholder="Username"
             class="w-full px-4 py-2 border border-zinc-200 rounded-lg text-sm"
           />
         </div>
@@ -43,7 +43,7 @@ const submit = () => {
           <input
             v-model="password"
             type="password"
-            placeholder="admin123"
+            placeholder="**********"
             class="w-full px-4 py-2 border border-zinc-200 rounded-lg text-sm"
           />
         </div>

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import type { LocalTallyRow, ResultExportPayload, ResultStats } from '../types'
+import type { EncryptedEnvelope, LocalTallyRow, ResultStats } from '../types'
 import { useToastStore } from './toast'
 
 type ExportScope = 'untransmitted' | 'all'
@@ -34,23 +34,24 @@ export const useResultStore = defineStore('result', {
       }
     },
 
-    async exportJson(scope: ExportScope = 'untransmitted', mark = false): Promise<ResultExportPayload | null> {
+    async exportEncrypted(scope: ExportScope = 'untransmitted', mark = false): Promise<EncryptedEnvelope | null> {
       try {
         const params = new URLSearchParams({
           scope,
           mark: mark ? '1' : '0'
         })
-        const response = await axios.get<ResultExportPayload>(`/results/export-json?${params.toString()}`)
+        params.set('encrypted', '1')
+        const response = await axios.get<EncryptedEnvelope>(`/results/export-json?${params.toString()}`)
         return response.data
       } catch (error) {
-        console.error('Error exporting results JSON:', error)
+        console.error('Error exporting encrypted results:', error)
         return null
       }
     },
 
     async markTransmitted(): Promise<void> {
       try {
-        await this.exportJson('untransmitted', true)
+        await this.exportEncrypted('untransmitted', true)
       } catch (error) {
         console.error('Error marking transmitted results:', error)
       }
@@ -59,7 +60,7 @@ export const useResultStore = defineStore('result', {
     async transmitToParent(parentUrl: string, scope: ExportScope = 'untransmitted'): Promise<boolean> {
       try {
         const toast = useToastStore()
-        const payload = await this.exportJson(scope, false)
+        const payload = await this.exportEncrypted(scope, false)
         if (!payload) {
           return false
         }

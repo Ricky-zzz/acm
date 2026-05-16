@@ -131,41 +131,41 @@ const resetMachine = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white text-black">
+  <div class="min-h-screen bg-zinc-50/50 text-zinc-900">
     <div class="max-w-5xl mx-auto px-6 py-10">
       <header class="text-center space-y-3 mb-10">
-        <div class="text-xs uppercase tracking-[0.35em]">Official Ballot Terminal</div>
+        <div class="text-xs uppercase tracking-[0.35em] text-zinc-500">Official Ballot Terminal</div>
         <h1 class="text-4xl md:text-5xl font-bold">{{ cityName }}</h1>
         <p class="text-sm text-zinc-500">Please follow the on-screen instructions to cast your vote.</p>
       </header>
 
-      <div v-if="!isConfigured" class="max-w-xl mx-auto bg-black text-white rounded-3xl p-10 text-center space-y-4 shadow-[8px_8px_0_#000]">
+      <div v-if="!isConfigured" class="max-w-xl mx-auto bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-4 shadow-sm">
         <div class="text-3xl font-bold">Machine Not Ready</div>
         <p class="text-lg">This voting machine has not been configured yet.</p>
-        <p class="text-sm text-zinc-300">Please contact the admin to import the setup file before any voter can proceed.</p>
+        <p class="text-sm text-zinc-500">Please contact the admin to import the setup file before any voter can proceed.</p>
       </div>
 
-      <div v-else-if="isBallotInventoryExhausted" class="max-w-xl mx-auto bg-black text-white rounded-3xl p-10 text-center space-y-4 shadow-[8px_8px_0_#000]">
+      <div v-else-if="isBallotInventoryExhausted" class="max-w-xl mx-auto bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-4 shadow-sm">
         <div class="text-3xl font-bold">Ballot Inventory Exhausted</div>
         <p class="text-lg">All authorized ballots have already been used.</p>
-        <p class="text-sm text-zinc-300">Import more ballots from the admin screen before accepting the next voter.</p>
-        <div class="pt-2 text-xs uppercase tracking-[0.2em] text-zinc-400">
+        <p class="text-sm text-zinc-500">Import more ballots from the admin screen before accepting the next voter.</p>
+        <div class="pt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
           Remaining Ballots: {{ ballotsAvailable }}
         </div>
       </div>
 
-      <div v-else-if="step === 1" class="max-w-xl mx-auto bg-white border-2 border-black rounded-3xl p-8 shadow-[8px_8px_0_#000]">
+      <div v-else-if="step === 1" class="max-w-xl mx-auto bg-white border border-zinc-200 rounded-2xl p-8 shadow-sm">
         <h2 class="text-2xl font-semibold mb-4">Step 1: Enter Ballot ID</h2>
         <input
           v-model="ballotNumber"
           type="text"
           placeholder="BALLOT-ID"
-          class="w-full border-2 border-black px-4 py-3 text-lg uppercase tracking-wider"
+          class="w-full border border-zinc-300 rounded-lg px-4 py-3 text-lg uppercase tracking-wider bg-white"
           :disabled="!isConfigured"
         />
         <button
           @click="startVoting"
-          class="w-full mt-6 bg-black text-white text-lg py-3 disabled:opacity-50"
+          class="w-full mt-6 bg-zinc-900 text-white text-lg py-3 rounded-lg disabled:opacity-50"
           :disabled="!isConfigured"
         >
           Continue
@@ -174,34 +174,34 @@ const resetMachine = () => {
       </div>
 
       <div v-else-if="step === 2" class="space-y-6">
-        <div class="bg-black text-white px-6 py-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+        <div class="bg-white border border-zinc-200 px-6 py-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div class="text-xs uppercase">Ballot ID</div>
-            <div class="text-xl font-semibold tracking-wider">{{ ballotNumber }}</div>
+            <div class="text-xs uppercase text-zinc-500">Ballot ID</div>
+            <div class="text-xl font-semibold tracking-wider text-zinc-900">{{ ballotNumber }}</div>
           </div>
-          <button @click="resetMachine" class="border border-white px-4 py-2 text-sm">Cancel</button>
+          <button @click="resetMachine" class="border border-zinc-300 px-4 py-2 text-sm rounded-lg text-zinc-700">Cancel</button>
         </div>
 
         <div class="space-y-6">
           <div
             v-for="position in electionStore.positions"
             :key="position.id"
-            class="border-2 border-black rounded-2xl p-6"
+            class="border border-zinc-200 rounded-2xl p-6 bg-white"
           >
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-xl font-semibold">{{ position.title }}</h3>
-              <span class="text-sm uppercase">Select {{ position.max_votes }}</span>
+              <span class="text-sm uppercase text-zinc-500">Select {{ position.max_votes }}</span>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label
                 v-for="candidate in candidatesByPosition.get(position.id) || []"
                 :key="candidate.id"
-                class="flex items-center gap-3 border-2 border-black px-4 py-3 text-lg cursor-pointer"
+                class="flex items-center gap-3 border border-zinc-200 rounded-lg px-4 py-3 text-lg cursor-pointer bg-white hover:border-zinc-300"
               >
                 <input
                   type="checkbox"
-                  class="h-5 w-5 accent-black"
+                  class="h-5 w-5 accent-zinc-900"
                   :checked="isChecked(candidate)"
                   :disabled="!isChecked(candidate) && getSelectedCount(position.id) >= position.max_votes"
                   @change="toggleCandidate(candidate, position.max_votes)"
@@ -215,16 +215,16 @@ const resetMachine = () => {
         </div>
 
         <div class="flex flex-col md:flex-row gap-4">
-          <button @click="resetMachine" class="border-2 border-black px-4 py-3 text-lg">Back</button>
-          <button @click="submitVote" class="flex-1 bg-black text-white px-4 py-3 text-lg">Submit Vote</button>
+          <button @click="resetMachine" class="border border-zinc-300 px-4 py-3 text-lg rounded-lg text-zinc-700">Back</button>
+          <button @click="submitVote" class="flex-1 bg-zinc-900 text-white px-4 py-3 text-lg rounded-lg">Submit Vote</button>
         </div>
         <p v-if="errorMessage" class="text-red-600 font-semibold">{{ errorMessage }}</p>
       </div>
 
-      <div v-else class="max-w-xl mx-auto bg-black text-white rounded-3xl p-10 text-center space-y-4">
+      <div v-else class="max-w-xl mx-auto bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-4 shadow-sm">
         <div class="text-3xl font-bold">Vote Recorded</div>
         <p class="text-lg">Thank you for participating.</p>
-        <button @click="resetMachine" class="mt-4 bg-white text-black px-6 py-3 text-lg">Next Voter</button>
+        <button @click="resetMachine" class="mt-4 bg-zinc-900 text-white px-6 py-3 text-lg rounded-lg">Next Voter</button>
       </div>
     </div>
   </div>
