@@ -35,6 +35,10 @@ const refresh = async () => {
   await resultStore.fetchStats()
   await resultStore.fetchTally()
 }
+
+const printReturnPdf = () => {
+  window.open('http://localhost/acm/voterra/api/results/return-pdf', '_blank')
+}
 </script>
 
 <template>
@@ -46,7 +50,10 @@ const refresh = async () => {
             <h2 class="text-lg font-semibold">Local Election Status</h2>
             <p class="text-sm text-zinc-500">Machine: {{ electionStore.settings?.city_name || 'Not configured' }}</p>
           </div>
-          <button @click="refresh" class="text-sm text-zinc-500 hover:text-zinc-900">Refresh</button>
+          <div class="flex items-center gap-3">
+            <button @click="refresh" class="text-sm text-zinc-500 hover:text-zinc-900">Refresh</button>
+            <button @click="printReturnPdf" class="text-sm text-zinc-700 border border-zinc-200 rounded-lg px-3 py-1">Print Election Return</button>
+          </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <div class="border border-zinc-200 rounded-xl p-4">

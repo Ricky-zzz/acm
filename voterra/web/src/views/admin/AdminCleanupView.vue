@@ -28,6 +28,19 @@ const wipeMachine = async () => {
     await electionStore.fetchSetup()
   }
 }
+
+const resetExportLock = async () => {
+  const confirmed = window.confirm(
+    'Reset export lock for demo? This reopens exporting and voting without wiping data.'
+  )
+
+  if (!confirmed) return
+
+  const success = await setupStore.resetExportLock()
+  if (success) {
+    await electionStore.fetchSetup()
+  }
+}
 </script>
 
 <template>
@@ -56,6 +69,27 @@ const wipeMachine = async () => {
           :disabled="setupStore.loading"
         >
           Wipe
+        </button>
+
+        <p v-if="setupStore.lastError" class="text-sm text-red-600">{{ setupStore.lastError }}</p>
+        <p v-if="setupStore.lastMessage" class="text-sm text-emerald-700">{{ setupStore.lastMessage }}</p>
+      </div>
+
+      <div class="bg-white border border-amber-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div>
+          <h3 class="text-base font-semibold text-amber-700">Reset Export Lock (Demo)</h3>
+          <p class="text-sm text-zinc-500">
+            Demo only. Reopens export and voting without wiping the machine.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          @click="resetExportLock"
+          class="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium text-amber-900 bg-amber-100 hover:bg-amber-200 disabled:opacity-60"
+          :disabled="setupStore.loading"
+        >
+          Reset Export Lock
         </button>
 
         <p v-if="setupStore.lastError" class="text-sm text-red-600">{{ setupStore.lastError }}</p>

@@ -66,6 +66,8 @@ $app->get('/cities/{id}/setup-csv', [\App\Controllers\BallotController::class, '
 // Results
 $app->post('/results/import', [\App\Controllers\ResultController::class, 'import']);
 $app->post('/results/import-csv', [\App\Controllers\ResultController::class, 'importCsv']);
+$app->get('/results/import-logs', [\App\Controllers\ResultController::class, 'getImportLogs']);
+$app->post('/results/import-logs/{id}/status', [\App\Controllers\ResultController::class, 'updateImportStatus']);
 $app->get('/results/{city_id}/tally', [\App\Controllers\ResultController::class, 'getTally']);
 
 $app->get('/test', function (Request $request, Response $response) {

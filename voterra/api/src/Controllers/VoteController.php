@@ -8,6 +8,13 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class VoteController {
 
+    private function getSetting($db, string $key): ?string {
+        $stmt = $db->prepare("SELECT `value` FROM settings WHERE `key` = ?");
+        $stmt->execute([$key]);
+        $value = $stmt->fetchColumn();
+        return $value !== false ? (string)$value : null;
+    }
+
     public function cast(Request $request, Response $response) {
         $data = $request->getParsedBody();
         $db = (new Database())->getConnection();
@@ -23,6 +30,11 @@ class VoteController {
         if ($ballotNumber === '' || !is_array($choices) || count($choices) === 0) {
             $response->getBody()->write(json_encode(['message' => 'Ballot number and choices are required']));
             return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
+        }
+
+        if ($this->getSetting($db, 'voting_closed') === '1') {
+            $response->getBody()->write(json_encode(['message' => 'Voting period is closed']));
+            return $response->withStatus(409)->withHeader('Content-Type', 'application/json');
         }
 
         $choices = array_values(array_unique(array_map('intval', $choices)));

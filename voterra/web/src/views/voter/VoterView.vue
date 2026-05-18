@@ -48,6 +48,10 @@ const isBallotInventoryExhausted = computed(() => {
   return ballotsAvailable.value === 0 && resultStore.stats!.total_ballots > 0
 })
 
+const isVotingClosed = computed(() => {
+  return electionStore.settings?.voting_closed === '1'
+})
+
 const selectedChoices = computed(() => {
   return Object.values(selections).flat()
 })
@@ -152,6 +156,12 @@ const resetMachine = () => {
         <div class="pt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
           Remaining Ballots: {{ ballotsAvailable }}
         </div>
+      </div>
+
+      <div v-else-if="isVotingClosed" class="max-w-xl mx-auto bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-4 shadow-sm">
+        <div class="text-3xl font-bold">Voting Period Closed</div>
+        <p class="text-lg">Please await the official results announcement.</p>
+        <p class="text-sm text-zinc-500">This terminal is now locked for voting.</p>
       </div>
 
       <div v-else-if="step === 1" class="max-w-xl mx-auto bg-white border border-zinc-200 rounded-2xl p-8 shadow-sm">

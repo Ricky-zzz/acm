@@ -83,6 +83,19 @@ export interface ResultImportResponse {
     errors: string[];
 }
 
+export interface ResultImportLog {
+    id: number;
+    city_id: number;
+    city_name: string;
+    import_key: string;
+    expected_votes: number;
+    received_votes: number;
+    method: 'manual' | '3g';
+    status: string;
+    note: string | null;
+    created_at: string;
+}
+
 export interface TallyRow {
     candidate_id: number;
     candidate_name: string;

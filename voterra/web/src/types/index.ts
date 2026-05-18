@@ -36,6 +36,12 @@ export interface SetupPayload {
 export interface SetupStatus {
   city_id?: string
   city_name?: string
+  configured_at?: string
+  voting_closed?: string
+  export_locked?: string
+  export_method?: string
+  export_key?: string
+  exported_at?: string
 }
 
 export interface BallotValidationResponse {
@@ -58,7 +64,19 @@ export interface LocalTallyRow {
 
 export interface ResultExportPayload {
   city_id: number
+  export_key?: string
+  expected_votes?: number
   results: Array<{ ballot_number: string; choices: number[] }>
+}
+
+export interface ExportLogEntry {
+  id: number
+  export_key: string
+  expected_votes: number
+  exported_votes: number
+  method: 'manual' | '3g'
+  status: string
+  created_at: string
 }
 
 export interface ResultStats {

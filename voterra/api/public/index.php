@@ -27,6 +27,7 @@ $app->get('/setup/status', [\App\Controllers\SetupController::class, 'status']);
 $app->post('/setup/import', [\App\Controllers\SetupController::class, 'importJson']);
 $app->post('/setup/import-csv', [\App\Controllers\SetupController::class, 'importCsv']);
 $app->post('/setup/wipe', [\App\Controllers\SetupController::class, 'wipe']);
+$app->post('/setup/reset-export-lock', [\App\Controllers\SetupController::class, 'resetExportLock']);
 
 // Local data
 $app->get('/positions', [\App\Controllers\PositionController::class, 'getAll']);
@@ -39,8 +40,10 @@ $app->post('/votes', [\App\Controllers\VoteController::class, 'cast']);
 // Results
 $app->get('/results/tally', [\App\Controllers\ResultController::class, 'getTally']);
 $app->get('/results/stats', [\App\Controllers\ResultController::class, 'getStats']);
+$app->get('/results/export-logs', [\App\Controllers\ResultController::class, 'getExportLogs']);
 $app->get('/results/export-json', [\App\Controllers\ResultController::class, 'exportJson']);
 $app->get('/results/export-csv', [\App\Controllers\ResultController::class, 'exportCsv']);
+$app->get('/results/return-pdf', [\App\Controllers\ResultController::class, 'printReturnPdf']);
 
 $app->get('/test', function (Request $request, Response $response) {
     $response->getBody()->write(json_encode(['message' => 'API is alive!']));

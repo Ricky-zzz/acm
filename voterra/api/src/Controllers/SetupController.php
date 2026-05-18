@@ -87,35 +87,10 @@ class SetupController {
         $incomingCityId = (string)$city['id'];
         $currentCityId = $this->configuredCityId($db);
 
-        if ($currentCityId !== null && $currentCityId !== $incomingCityId) {
-            return $this->json($response, [
-                'message' => 'City mismatch: machine configured for a different city. Use Cleanup -> Wipe to reconfigure.'
-            ], 409);
-        }
-
         if ($currentCityId !== null) {
-            try {
-                $stmt = $db->prepare("INSERT IGNORE INTO authorized_ballots (ballot_number) VALUES (?)");
-                $added = 0;
-
-                foreach ($validBallots as $num) {
-                    if ((string)$num === '') {
-                        continue;
-                    }
-
-                    $stmt->execute([(string)$num]);
-                    $added += $stmt->rowCount();
-                }
-
-                return $this->json($response, [
-                    'status' => 'Ballots imported successfully',
-                    'message' => $added > 0
-                        ? "Added {$added} new ballot(s) for the current city."
-                        : 'No new ballots were added. They may already be authorized.'
-                ]);
-            } catch (\Exception $e) {
-                return $this->json($response, ['status' => 'error', 'message' => $e->getMessage()], 500);
-            }
+            return $this->json($response, [
+                'message' => 'Machine already configured. Ballot imports are locked. Use Cleanup -> Wipe to reconfigure.'
+            ], 409);
         }
 
         $db->beginTransaction();
@@ -124,6 +99,12 @@ class SetupController {
             $this->resetMachine($db);
             $this->upsertSetting($db, 'city_id', (string)$city['id']);
             $this->upsertSetting($db, 'city_name', (string)$city['name']);
+            $this->upsertSetting($db, 'configured_at', date('c'));
+            $this->upsertSetting($db, 'voting_closed', '0');
+            $this->upsertSetting($db, 'export_locked', '0');
+            $this->upsertSetting($db, 'export_method', '');
+            $this->upsertSetting($db, 'export_key', '');
+            $this->upsertSetting($db, 'exported_at', '');
 
             $stmt = $db->prepare("INSERT INTO positions (id, title, max_votes) VALUES (?, ?, ?)");
             foreach ($positions as $pos) {
@@ -171,8 +152,38 @@ class SetupController {
         }
     }
 
+    public function resetExportLock(Request $request, Response $response) {
+        $db = (new Database())->getConnection();
+        if ($this->configuredCityId($db) === null) {
+            return $this->json($response, ['message' => 'Machine not configured'], 422);
+        }
+
+        $db->beginTransaction();
+
+        try {
+            $this->upsertSetting($db, 'export_locked', '0');
+            $this->upsertSetting($db, 'export_method', '');
+            $this->upsertSetting($db, 'export_key', '');
+            $this->upsertSetting($db, 'exported_at', '');
+            $this->upsertSetting($db, 'voting_closed', '0');
+            $db->exec("UPDATE local_votes SET is_transmitted = 0");
+            $db->commit();
+
+            return $this->json($response, ['status' => 'Export lock reset (demo)']);
+        } catch (\Exception $e) {
+            $db->rollBack();
+            return $this->json($response, ['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function importCsv(Request $request, Response $response) {
         $db = (new Database())->getConnection();
+        if ($this->configuredCityId($db) !== null) {
+            $response->getBody()->write(json_encode([
+                'message' => 'Machine already configured. Ballot imports are locked. Use Cleanup -> Wipe to reconfigure.'
+            ]));
+            return $response->withStatus(409)->withHeader('Content-Type', 'application/json');
+        }
         $uploadedFiles = $request->getUploadedFiles();
 
         if (!isset($uploadedFiles['file'])) {

@@ -15,10 +15,12 @@ const selectedPosition = ref<string>('__ALL__')
 const jsonFileError = ref('')
 const importResponse = ref<ResultImportResponse | null>(null)
 const jsonPayload = ref<ResultImportPayload | EncryptedEnvelope | null>(null)
+const logMethod = ref<'manual' | '3g'>('manual')
 
 onMounted(async () => {
   await cityStore.fetchCities()
   await ballotStore.fetchBallots()
+  await resultStore.fetchImportLogs(logMethod.value)
 })
 
 watch(
@@ -27,6 +29,13 @@ watch(
     if (tab !== 'results') return
     if (!cityId) return
     await resultStore.fetchTally(cityId)
+  }
+)
+
+watch(
+  () => logMethod.value,
+  async (method) => {
+    await resultStore.fetchImportLogs(method)
   }
 )
 
@@ -117,10 +126,11 @@ const importResultsJson = async () => {
     return
   }
 
-  const response = await resultStore.importResults(jsonPayload.value)
+  const response = await resultStore.importResults(jsonPayload.value, 'manual')
   if (response) {
     importResponse.value = response
     await ballotStore.fetchBallots()
+    await resultStore.fetchImportLogs(logMethod.value)
   } else {
     jsonFileError.value = 'Import failed. Check the server logs.'
   }
@@ -129,6 +139,20 @@ const importResultsJson = async () => {
 const refreshTally = async () => {
   if (!selectedCity.value) return
   await resultStore.fetchTally(selectedCity.value)
+}
+
+const approveLog = async (id: number) => {
+  const success = await resultStore.updateImportLogStatus(id, 'accepted')
+  if (success) {
+    await resultStore.fetchImportLogs(logMethod.value)
+  }
+}
+
+const rejectLog = async (id: number) => {
+  const success = await resultStore.updateImportLogStatus(id, 'rejected')
+  if (success) {
+    await resultStore.fetchImportLogs(logMethod.value)
+  }
 }
 </script>
 
@@ -189,6 +213,72 @@ const refreshTally = async () => {
           <ul v-if="importResponse.errors.length" class="list-disc list-inside text-xs text-red-600">
             <li v-for="(err, idx) in importResponse.errors" :key="idx">{{ err }}</li>
           </ul>
+        </div>
+      </div>
+
+      <div class="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between gap-4">
+          <h2 class="text-lg font-semibold text-zinc-900">Import Log</h2>
+          <div class="inline-flex items-center gap-2 bg-zinc-100 rounded-full p-1">
+            <button
+              @click="logMethod = 'manual'"
+              class="px-4 py-2 text-sm rounded-full"
+              :class="logMethod === 'manual' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'"
+            >
+              Manual
+            </button>
+            <button
+              @click="logMethod = '3g'"
+              class="px-4 py-2 text-sm rounded-full"
+              :class="logMethod === '3g' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'"
+            >
+              3G
+            </button>
+          </div>
+        </div>
+        <div class="overflow-hidden border border-zinc-100 rounded-xl">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-zinc-50 border-b border-zinc-200 text-xs uppercase text-zinc-500 font-semibold">
+              <tr>
+                <th class="px-4 py-3">City</th>
+                <th class="px-4 py-3">Import Key</th>
+                <th class="px-4 py-3">Expected</th>
+                <th class="px-4 py-3">Received</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Transmission</th>
+                <th class="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-100">
+              <tr v-if="resultStore.importLogs.length === 0">
+                <td colspan="7" class="px-4 py-4 text-zinc-400">No imports yet.</td>
+              </tr>
+              <tr v-for="log in resultStore.importLogs" :key="log.id">
+                <td class="px-4 py-3 text-zinc-900">{{ log.city_name }}</td>
+                <td class="px-4 py-3 text-zinc-500">{{ log.import_key }}</td>
+                <td class="px-4 py-3">{{ log.expected_votes }}</td>
+                <td class="px-4 py-3">{{ log.received_votes }}</td>
+                <td class="px-4 py-3 text-zinc-500">{{ log.status }}</td>
+                <td class="px-4 py-3 text-zinc-500">{{ log.note || 'n/a' }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <button
+                      @click="approveLog(log.id)"
+                      class="px-3 py-1 text-xs rounded-md border border-zinc-200 text-zinc-700 hover:border-zinc-400"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      @click="rejectLog(log.id)"
+                      class="px-3 py-1 text-xs rounded-md border border-red-200 text-red-600 hover:border-red-400"
+                    >
+                      Deny
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

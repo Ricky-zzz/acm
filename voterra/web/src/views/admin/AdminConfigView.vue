@@ -11,14 +11,14 @@ const electionStore = useElectionStore()
 const jsonFileError = ref('')
 const selectedFileName = ref('')
 
+const isConfigured = computed(() => Boolean(setupStore.status?.city_id))
+
 const statusCity = computed(() => {
   if (!setupStore.status?.city_name) return 'Not configured'
   return `${setupStore.status.city_name} (#${setupStore.status.city_id})`
 })
 
-const importTitle = computed(() => (
-  setupStore.status?.city_id ? 'Add More Ballots (Top-up)' : 'Import Setup (JSON)'
-))
+const importTitle = computed(() => 'Import Setup (JSON)')
 
 onMounted(async () => {
   await setupStore.fetchStatus()
@@ -52,6 +52,7 @@ const importJsonFile = async (event: Event) => {
     const success = await setupStore.importJson(payload as EncryptedEnvelope)
     if (success) {
       await electionStore.fetchSetup()
+      window.open('http://localhost/acm/voterra/api/results/return-pdf', '_blank')
     }
   } catch (error) {
     jsonFileError.value = 'Invalid JSON file.'
@@ -73,10 +74,10 @@ const importJsonFile = async (event: Event) => {
           <div>
             <h3 class="text-base font-semibold">{{ importTitle }}</h3>
             <p class="text-sm text-zinc-500">
-              Encrypted JSON required. If this machine is already configured, imports must match the current city and will only add missing ballot numbers.
+              Encrypted JSON required to initialize this machine. After configuration, ballot imports are locked.
             </p>
           </div>
-          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div v-if="!isConfigured" class="flex flex-col sm:flex-row sm:items-center gap-3">
             <label
               for="setup-json-file"
               class="inline-flex items-center justify-center px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 cursor-pointer"
@@ -91,6 +92,9 @@ const importJsonFile = async (event: Event) => {
               accept="application/json"
               class="sr-only"
             />
+          </div>
+          <div v-else class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Machine configured. Ballot imports are locked. Use Cleanup -> Wipe to reconfigure.
           </div>
           <p v-if="jsonFileError" class="text-sm text-red-600">{{ jsonFileError }}</p>
           <p v-if="setupStore.lastError" class="text-sm text-red-600">{{ setupStore.lastError }}</p>

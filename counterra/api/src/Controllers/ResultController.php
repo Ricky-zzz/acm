@@ -9,6 +9,29 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class ResultController {
 
+    private function getImportMethod(Request $request): string {
+        $params = $request->getQueryParams();
+        $method = strtolower((string)($params['method'] ?? 'manual'));
+        return $method === '3g' ? '3g' : 'manual';
+    }
+
+    private function importKeyExists($db, string $importKey): bool {
+        $stmt = $db->prepare("SELECT id FROM result_import_logs WHERE import_key = ?");
+        $stmt->execute([$importKey]);
+        return (bool)$stmt->fetchColumn();
+    }
+
+    private function insertImportLog($db, int $cityId, string $importKey, int $expectedVotes, string $method, string $note): int {
+        $stmt = $db->prepare("INSERT INTO result_import_logs (city_id, import_key, expected_votes, received_votes, method, status, note) VALUES (?, ?, ?, 0, ?, 'pending', ?)");
+        $stmt->execute([$cityId, $importKey, $expectedVotes, $method, $note]);
+        return intval($db->lastInsertId());
+    }
+
+    private function updateImportLog($db, int $logId, int $receivedVotes, string $note): void {
+        $stmt = $db->prepare("UPDATE result_import_logs SET received_votes = ?, note = ? WHERE id = ?");
+        $stmt->execute([$receivedVotes, $note, $logId]);
+    }
+
     public function import(Request $request, Response $response) {
         $data = $request->getParsedBody();
         $db = (new Database())->getConnection();
@@ -38,6 +61,9 @@ class ResultController {
 
         $cityId = isset($data['city_id']) ? intval($data['city_id']) : 0;
         $results = $data['results'] ?? [];
+        $importKey = (string)($data['export_key'] ?? '');
+        $expectedVotes = intval($data['expected_votes'] ?? 0);
+        $method = $this->getImportMethod($request);
 
         if ($cityId <= 0 || !is_array($results)) {
             $response->getBody()->write(json_encode([
@@ -46,12 +72,36 @@ class ResultController {
             return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
         }
 
+        if ($importKey === '') {
+            $importKey = bin2hex(random_bytes(16));
+        }
+
+        if ($this->importKeyExists($db, $importKey)) {
+            $response->getBody()->write(json_encode([
+                'message' => 'Duplicate import key'
+            ]));
+            return $response->withStatus(409)->withHeader('Content-Type', 'application/json');
+        }
+
+        if ($expectedVotes <= 0) {
+            $expectedVotes = 0;
+            foreach ($results as $item) {
+                $choices = $item['choices'] ?? [];
+                if (is_array($choices)) {
+                    $expectedVotes += count($choices);
+                }
+            }
+        }
+
         $processedCount = 0;
+        $receivedVotes = 0;
         $errors = [];
 
         $db->beginTransaction();
 
         try {
+            $logId = $this->insertImportLog($db, $cityId, $importKey, $expectedVotes, $method, 'smooth');
+
             foreach ($results as $item) {
                 $ballotNum = $item['ballot_number'] ?? '';
                 $choices = $item['choices'] ?? [];
@@ -78,6 +128,7 @@ class ResultController {
                 foreach ($choices as $candidateId) {
                     $stmt = $db->prepare("INSERT INTO votes (ballot_id, candidate_id) VALUES (?, ?)");
                     $stmt->execute([$ballot['id'], intval($candidateId)]);
+                    $receivedVotes++;
                 }
 
                 $stmt = $db->prepare("UPDATE ballots SET status = 'used' WHERE id = ?");
@@ -85,6 +136,9 @@ class ResultController {
 
                 $processedCount++;
             }
+
+            $note = count($errors) > 0 ? 'interrupted' : 'smooth';
+            $this->updateImportLog($db, $logId, $receivedVotes, $note);
 
             $db->commit();
 
@@ -107,6 +161,7 @@ class ResultController {
     public function importCsv(Request $request, Response $response) {
         $db = (new Database())->getConnection();
         $uploadedFiles = $request->getUploadedFiles();
+        $method = $this->getImportMethod($request);
 
         if (!isset($uploadedFiles['file'])) {
             $response->getBody()->write(json_encode([
@@ -133,6 +188,7 @@ class ResultController {
 
         $cityId = 0;
         $map = [];
+        $importKey = '';
 
         while (($row = fgetcsv($handle)) !== false) {
             $type = strtoupper(trim($row[0] ?? ''));
@@ -142,6 +198,11 @@ class ResultController {
 
             if ($type === 'CITY') {
                 $cityId = intval($row[1] ?? 0);
+                continue;
+            }
+
+            if ($type === 'EXPORT_KEY') {
+                $importKey = (string)($row[1] ?? '');
                 continue;
             }
 
@@ -167,6 +228,17 @@ class ResultController {
             return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
         }
 
+        if ($importKey === '') {
+            $importKey = bin2hex(random_bytes(16));
+        }
+
+        if ($this->importKeyExists($db, $importKey)) {
+            $response->getBody()->write(json_encode([
+                'message' => 'Duplicate import key'
+            ]));
+            return $response->withStatus(409)->withHeader('Content-Type', 'application/json');
+        }
+
         $results = [];
         foreach ($map as $ballotNum => $choices) {
             $results[] = [
@@ -176,11 +248,21 @@ class ResultController {
         }
 
         $processedCount = 0;
+        $receivedVotes = 0;
         $errors = [];
+        $expectedVotes = 0;
+        foreach ($results as $item) {
+            $choices = $item['choices'] ?? [];
+            if (is_array($choices)) {
+                $expectedVotes += count($choices);
+            }
+        }
 
         $db->beginTransaction();
 
         try {
+            $logId = $this->insertImportLog($db, $cityId, $importKey, $expectedVotes, $method, 'smooth');
+
             foreach ($results as $item) {
                 $ballotNum = $item['ballot_number'] ?? '';
                 $choices = $item['choices'] ?? [];
@@ -207,6 +289,7 @@ class ResultController {
                 foreach ($choices as $candidateId) {
                     $stmt = $db->prepare("INSERT INTO votes (ballot_id, candidate_id) VALUES (?, ?)");
                     $stmt->execute([$ballot['id'], intval($candidateId)]);
+                    $receivedVotes++;
                 }
 
                 $stmt = $db->prepare("UPDATE ballots SET status = 'used' WHERE id = ?");
@@ -214,6 +297,9 @@ class ResultController {
 
                 $processedCount++;
             }
+
+            $note = count($errors) > 0 ? 'interrupted' : 'smooth';
+            $this->updateImportLog($db, $logId, $receivedVotes, $note);
 
             $db->commit();
 
@@ -255,6 +341,49 @@ class ResultController {
         $tally = $stmt->fetchAll();
 
         $response->getBody()->write(json_encode($tally));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function getImportLogs(Request $request, Response $response) {
+        $db = (new Database())->getConnection();
+        $query = $request->getQueryParams();
+        $method = strtolower((string)($query['method'] ?? ''));
+        $params = [];
+
+        $sql = "SELECT l.id, l.city_id, c.name as city_name, l.import_key, l.expected_votes, l.received_votes, l.method, l.status, l.note, l.created_at
+                FROM result_import_logs l
+                JOIN cities c ON l.city_id = c.id";
+
+        if ($method === 'manual' || $method === '3g') {
+            $sql .= " WHERE l.method = ?";
+            $params[] = $method;
+        }
+
+        $sql .= " ORDER BY l.id DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $logs = $stmt->fetchAll();
+
+        $response->getBody()->write(json_encode($logs));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function updateImportStatus(Request $request, Response $response, array $args) {
+        $logId = intval($args['id'] ?? 0);
+        $data = $request->getParsedBody();
+        $status = strtolower((string)($data['status'] ?? ''));
+
+        if ($logId <= 0 || ($status !== 'accepted' && $status !== 'rejected')) {
+            $response->getBody()->write(json_encode(['message' => 'Invalid status update']));
+            return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
+        }
+
+        $db = (new Database())->getConnection();
+        $stmt = $db->prepare("UPDATE result_import_logs SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $logId]);
+
+        $response->getBody()->write(json_encode(['status' => 'success']));
         return $response->withHeader('Content-Type', 'application/json');
     }
 }

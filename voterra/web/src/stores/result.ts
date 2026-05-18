@@ -1,14 +1,15 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import type { EncryptedEnvelope, LocalTallyRow, ResultStats } from '../types'
+import type { EncryptedEnvelope, ExportLogEntry, LocalTallyRow, ResultStats } from '../types'
 import { useToastStore } from './toast'
 
-type ExportScope = 'untransmitted' | 'all'
+type ExportMethod = 'manual' | '3g'
 
 export const useResultStore = defineStore('result', {
   state: () => ({
     tally: [] as LocalTallyRow[],
     stats: null as ResultStats | null,
+    exportLogs: [] as ExportLogEntry[],
     loading: false
   }),
 
@@ -34,12 +35,19 @@ export const useResultStore = defineStore('result', {
       }
     },
 
-    async exportEncrypted(scope: ExportScope = 'untransmitted', mark = false): Promise<EncryptedEnvelope | null> {
+    async fetchExportLogs(method?: ExportMethod) {
       try {
-        const params = new URLSearchParams({
-          scope,
-          mark: mark ? '1' : '0'
-        })
+        const params = method ? { method } : undefined
+        const response = await axios.get<ExportLogEntry[]>('/results/export-logs', { params })
+        this.exportLogs = response.data
+      } catch (error) {
+        console.error('Error fetching export logs:', error)
+      }
+    },
+
+    async exportEncrypted(method: ExportMethod = 'manual'): Promise<EncryptedEnvelope | null> {
+      try {
+        const params = new URLSearchParams({ method })
         params.set('encrypted', '1')
         const response = await axios.get<EncryptedEnvelope>(`/results/export-json?${params.toString()}`)
         return response.data
@@ -49,23 +57,14 @@ export const useResultStore = defineStore('result', {
       }
     },
 
-    async markTransmitted(): Promise<void> {
-      try {
-        await this.exportEncrypted('untransmitted', true)
-      } catch (error) {
-        console.error('Error marking transmitted results:', error)
-      }
-    },
-
-    async transmitToParent(parentUrl: string, scope: ExportScope = 'untransmitted'): Promise<boolean> {
+    async transmitToParent(parentUrl: string): Promise<boolean> {
       try {
         const toast = useToastStore()
-        const payload = await this.exportEncrypted(scope, false)
+        const payload = await this.exportEncrypted('3g')
         if (!payload) {
           return false
         }
         await axios.post(parentUrl, payload)
-        await this.markTransmitted()
         toast.success('Results transmitted')
         return true
       } catch (error) {

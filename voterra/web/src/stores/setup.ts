@@ -63,5 +63,25 @@ export const useSetupStore = defineStore('setup', {
         return false
       }
     },
+
+    async resetExportLock(): Promise<boolean> {
+      const toast = useToastStore()
+      this.lastError = ''
+      this.lastMessage = ''
+
+      try {
+        const response = await axios.post<{ status?: string; message?: string }>('/setup/reset-export-lock')
+        await this.fetchStatus()
+        this.lastMessage = response.data.message || response.data.status || 'Export lock reset'
+        toast.success(this.lastMessage)
+        return true
+      } catch (error) {
+        this.lastError = axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Reset failed'
+          : 'Reset failed'
+        console.error('Error resetting export lock:', error)
+        return false
+      }
+    },
   }
 })
