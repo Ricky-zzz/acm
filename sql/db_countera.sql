@@ -40,7 +40,7 @@ CREATE TABLE `ballots` (
   UNIQUE KEY `ballot_number` (`ballot_number`),
   KEY `city_id` (`city_id`),
   CONSTRAINT `ballots_ibfk_1` FOREIGN KEY (`city_id`) REFERENCES `cities` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -49,7 +49,6 @@ CREATE TABLE `ballots` (
 
 LOCK TABLES `ballots` WRITE;
 /*!40000 ALTER TABLE `ballots` DISABLE KEYS */;
-INSERT INTO `ballots` VALUES (1,1,'LIP-53F5-0001','used','2026-05-15 13:42:19'),(2,1,'LIP-53F5-0002','used','2026-05-15 13:42:19'),(3,1,'LIP-53F5-0003','unused','2026-05-15 13:42:19'),(4,1,'LIP-53F5-0004','unused','2026-05-15 13:42:19'),(5,1,'LIP-53F5-0005','unused','2026-05-15 13:42:19'),(6,1,'LIP-53F5-0006','unused','2026-05-15 13:42:19'),(7,1,'LIP-53F5-0007','unused','2026-05-15 13:42:19'),(8,1,'LIP-53F5-0008','unused','2026-05-15 13:42:19'),(9,1,'LIP-53F5-0009','unused','2026-05-15 13:42:19'),(10,1,'LIP-53F5-0010','unused','2026-05-15 13:42:19');
 /*!40000 ALTER TABLE `ballots` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -164,6 +163,39 @@ INSERT INTO `positions` VALUES (1,1,'Mayor',1),(11,1,'Vice Mayor',1),(12,1,'City
 UNLOCK TABLES;
 
 --
+-- Table structure for table `result_import_logs`
+--
+
+DROP TABLE IF EXISTS `result_import_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `result_import_logs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `city_id` int NOT NULL,
+  `import_key` varchar(64) NOT NULL,
+  `expected_votes` int NOT NULL DEFAULT '0',
+  `received_votes` int NOT NULL DEFAULT '0',
+  `method` enum('3g','manual') NOT NULL,
+  `status` enum('pending','accepted','rejected','duplicate') NOT NULL DEFAULT 'pending',
+  `note` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_import_key` (`import_key`),
+  KEY `idx_city` (`city_id`),
+  CONSTRAINT `fk_import_city` FOREIGN KEY (`city_id`) REFERENCES `cities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `result_import_logs`
+--
+
+LOCK TABLES `result_import_logs` WRITE;
+/*!40000 ALTER TABLE `result_import_logs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `result_import_logs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `settings`
 --
 
@@ -230,7 +262,7 @@ CREATE TABLE `votes` (
   KEY `candidate_id` (`candidate_id`),
   CONSTRAINT `votes_ibfk_1` FOREIGN KEY (`ballot_id`) REFERENCES `ballots` (`id`) ON DELETE CASCADE,
   CONSTRAINT `votes_ibfk_2` FOREIGN KEY (`candidate_id`) REFERENCES `candidates` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -239,7 +271,6 @@ CREATE TABLE `votes` (
 
 LOCK TABLES `votes` WRITE;
 /*!40000 ALTER TABLE `votes` DISABLE KEYS */;
-INSERT INTO `votes` VALUES (1,1,2,'2026-05-16 08:33:31'),(2,1,3,'2026-05-16 08:33:31'),(3,1,19,'2026-05-16 08:33:31'),(4,1,20,'2026-05-16 08:33:31'),(5,1,17,'2026-05-16 08:33:31'),(6,1,16,'2026-05-16 08:33:31'),(7,1,21,'2026-05-16 08:33:31'),(8,1,6,'2026-05-16 08:33:31'),(9,1,14,'2026-05-16 08:33:31'),(10,1,18,'2026-05-16 08:33:31'),(11,1,11,'2026-05-16 08:33:31'),(12,1,7,'2026-05-16 08:33:31'),(13,1,25,'2026-05-16 08:33:31'),(14,1,28,'2026-05-16 08:33:31'),(15,2,2,'2026-05-17 03:18:18'),(16,2,3,'2026-05-17 03:18:18'),(17,2,19,'2026-05-17 03:18:18'),(18,2,20,'2026-05-17 03:18:18'),(19,2,17,'2026-05-17 03:18:18'),(20,2,16,'2026-05-17 03:18:18'),(21,2,21,'2026-05-17 03:18:18'),(22,2,6,'2026-05-17 03:18:18'),(23,2,14,'2026-05-17 03:18:18'),(24,2,18,'2026-05-17 03:18:18'),(25,2,11,'2026-05-17 03:18:18'),(26,2,7,'2026-05-17 03:18:18'),(27,2,25,'2026-05-17 03:18:18'),(28,2,28,'2026-05-17 03:18:18');
 /*!40000 ALTER TABLE `votes` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -252,4 +283,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-17 11:22:59
+-- Dump completed on 2026-05-19 15:24:56
